@@ -1,0 +1,4 @@
+
+func SetConfig(cfg svc.Config) svc.Config {
+	return cfg
+}

@@ -1,0 +1,25 @@
+package handlers
+
+import (
+	"context"
+
+	pb "{{.PBImportPath -}}"
+)
+
+// NewService returns a naive, stateless implementation of Service.
+func NewService() pb.{{GoName .Service.Name}}Server {
+	return {{ToLower .Service.Name}}Service{}
+}
+
+type {{ToLower .Service.Name}}Service struct{
+	pb.Unimplemented{{GoName .Service.Name}}Server
+}
+
+{{with $te := . }}
+	{{range $i := $te.Service.Methods}}
+		func (s {{ToLower $te.Service.Name}}Service) {{$i.Name}}(ctx context.Context, in *pb.{{GoName $i.Request}}) (*pb.{{GoName $i.Response}}, error){
+			var resp pb.{{GoName $i.Response}}
+			return &resp, nil
+		}
+	{{end}}
+{{- end}}

@@ -1,0 +1,9 @@
+
+{{ with $te := .}}
+		{{range $i := .Methods}}
+		func (s {{ToLower $te.ServiceName}}Service) {{.Name}}(ctx context.Context, in *pb.{{GoName .Request}}) (*pb.{{GoName .Response}}, error){
+			var resp pb.{{GoName .Response}}
+			return &resp, nil
+		}
+		{{end}}
+{{- end}}
