@@ -23,10 +23,11 @@ import (
 // information necessary to correctly template the HTTP transport functionality
 // of a service. Helper must be built from a Svcdef.
 type Helper struct {
-	Service        *proto.Service
-	Methods        []*Method
-	ServerTemplate func(interface{}) (string, error)
-	ClientTemplate func(interface{}) (string, error)
+	Service            *proto.Service
+	Methods            []*Method
+	CompressionEnabled bool
+	ServerTemplate     func(interface{}) (string, error)
+	ClientTemplate     func(interface{}) (string, error)
 }
 
 // NewHelper builds a helper struct from a service declaration. The other
@@ -36,10 +37,11 @@ func NewHelper(svc *proto.Service) *Helper {
 	// The HTTPAssistFuncs global is a group of function literals defined
 	// within templates.go
 	rv := Helper{
-		Service:        svc,
-		Methods:        make([]*Method, 0),
-		ServerTemplate: GenServerTemplate,
-		ClientTemplate: GenClientTemplate,
+		Service:            svc,
+		Methods:            make([]*Method, 0),
+		ServerTemplate:     GenServerTemplate,
+		ClientTemplate:     GenClientTemplate,
+		CompressionEnabled: svc.CompressionUsed(),
 	}
 	for _, method := range svc.Methods {
 		if len(method.HttpBindings) > 0 {
@@ -55,6 +57,7 @@ func NewMethod(meth *proto.Method) *Method {
 		Name:         meth.Name,
 		RequestType:  meth.Request,
 		ResponseType: meth.Response,
+		Compressed:   meth.Compressed,
 	}
 	for i := range meth.HttpBindings {
 		nBinding := NewBinding(i, meth)

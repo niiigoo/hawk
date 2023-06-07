@@ -8,6 +8,7 @@ type Method struct {
 	RequestType  string
 	ResponseType string
 	Bindings     []*Binding
+	Compressed   bool
 }
 
 // Binding contains the distillation of information within an

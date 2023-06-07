@@ -68,6 +68,9 @@ import (
 	"io"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
+	{{- if .HTTPHelper.CompressionEnabled}}
+		"github.com/CAFxX/httpcompression"
+	{{- end}}
 	"context"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -86,8 +89,7 @@ var (
 	_ = io.Copy
 	_ = errors.Wrap
 )
-// MakeHTTPHandler returns a handler that makes a set of endpoints available
-// on predefined paths.
+// MakeHTTPHandler returns a handler that makes a set of endpoints available on predefined paths.
 func MakeHTTPHandler(endpoints Endpoints, responseEncoder transport.EncodeResponseFunc, options ...transport.ServerOption) http.Handler {
 	if responseEncoder == nil {
 		responseEncoder = EncodeHTTPGenericResponse
@@ -100,18 +102,21 @@ func MakeHTTPHandler(endpoints Endpoints, responseEncoder transport.EncodeRespon
 		}
 		serverOptions = append(serverOptions, options...)
 	{{- end }}
+	{{- if .HTTPHelper.CompressionEnabled}}
+		compress, _ := httpcompression.DefaultAdapter()
+	{{- end}}
 	m := mux.NewRouter()
 	{{range $method := .HTTPHelper.Methods}}
 		{{range $binding := $method.Bindings}}
 			if endpoints.HasHttpHandlerFunc("{{$method.Name}}") {
 				m.Methods("{{$binding.Method | ToUpper}}").Path("{{$binding.PathTemplate}}").HandlerFunc(endpoints.GetHttpHandlerFunc("{{$method.Name}}"))
 			} else {
-				m.Methods("{{$binding.Method | ToUpper}}").Path("{{$binding.PathTemplate}}").Handler(transport.NewServer(
+				m.Methods("{{$binding.Method | ToUpper}}").Path("{{$binding.PathTemplate}}").Handler({{ if $method.Compressed }}compress{{ end }}(transport.NewServer(
 					endpoints.{{$method.Name}}Endpoint,
 					endpoints.GetHttpRequestDecoder("{{$method.Name}}", DecodeHTTP{{$binding.Label}}Request),
 					endpoints.GetHttpResponseEncoder("{{$method.Name}}", responseEncoder),
 					append(serverOptions, endpoints.GetHttpServerOptions("{{$method.Name}}")...)...,
-				))
+				)))
 			}
 		{{- end}}
 	{{- end}}

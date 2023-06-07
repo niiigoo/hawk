@@ -104,9 +104,15 @@ log.Info("Hello world")
 }
 ```
 
+## HTTP compression
+
+Compression can be configured for the whole service and for specific methods by using options in the `.proto` file.
+This is an experimental feature and the performance tradeoffs may be high.
+
+The library [httpcompression](https://github.com/CAFxX/httpcompression) is used (licensed under Apache 2.0).
+
 ## Planned features
 
-- Implement compression (HTTP)
 - Generate documentation
   - Markdown
   - Swagger

@@ -47,7 +47,7 @@ type Service struct {
 	*io.Service
 	Name       string
 	HttpPrefix string
-	Compress   *bool
+	Compressed *bool
 	Methods    []*Method
 }
 
@@ -58,6 +58,7 @@ type Method struct {
 	Request      string
 	Response     string
 	HttpBindings []*OptionHttp
+	Compressed   bool
 
 	Parent *Service
 }
@@ -209,6 +210,15 @@ func (s *Service) CheckParams(def *Definition) error {
 	return nil
 }
 
+func (s *Service) CompressionUsed() bool {
+	for _, m := range s.Methods {
+		if m.Compressed {
+			return true
+		}
+	}
+	return false
+}
+
 func (d Definition) methodFromProto(s *Service, method *io.Method) (*Method, error) {
 	if method.Request == nil || method.Response == nil {
 		return nil, errors.New("invalid method definition (`" + method.Name + "`)")
@@ -222,6 +232,9 @@ func (d Definition) methodFromProto(s *Service, method *io.Method) (*Method, err
 		HttpBindings: make([]*OptionHttp, 0),
 		Parent:       s,
 	}
+	if s.Compressed != nil {
+		m.Compressed = *s.Compressed
+	}
 
 	for _, option := range method.Options {
 		if option.Name == "google.api.http" {
@@ -232,6 +245,11 @@ func (d Definition) methodFromProto(s *Service, method *io.Method) (*Method, err
 			if err != nil {
 				return nil, err
 			}
+		} else if option.Name == "httpCompress" {
+			if option.Value == nil || option.Value.Bool == nil {
+				return nil, errors.New("invalid value provided for `httpCompress` (method `" + method.Name + "`)")
+			}
+			m.Compressed = bool(*option.Value.Bool)
 		}
 	}
 
@@ -327,14 +345,16 @@ func (d Definition) serviceFromProto(service *io.Service) (*Service, error) {
 		} else if entry.Option != nil {
 			if entry.Option.Name == "httpConfig" {
 				if entry.Option.Value == nil || entry.Option.Value.Map == nil {
-					return nil, errors.New("invalid value provided for `(httpPrefix)`")
+					return nil, errors.New("invalid value provided for `(httpConfig)`")
 				}
 				for _, mapEntry := range entry.Option.Value.Map.Entries {
 					switch *mapEntry.Key.Reference {
 					case "Prefix":
 						s.HttpPrefix = *mapEntry.Value.String
 					case "Compress":
-						s.Compress = mapEntry.Value.Bool
+						if mapEntry.Value != nil && mapEntry.Value.Bool != nil {
+							s.Compressed = ref(bool(*mapEntry.Value.Bool))
+						}
 					}
 				}
 			}
@@ -384,4 +404,8 @@ func DefinitionFromProto(data *io.Proto) (*Definition, error) {
 	}
 
 	return d, nil
+}
+
+func ref[T any](v T) *T {
+	return &v
 }

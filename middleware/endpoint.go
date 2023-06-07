@@ -12,7 +12,7 @@ import (
 func EndpointLogging(logger *logrus.Entry, fields logrus.Fields) func(string, endpoint.Endpoint) endpoint.Endpoint {
 	return func(method string, next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			log := LoggerFromContext(ctx)
+			log := GetLogger(ctx)
 			if log == nil {
 				log = logger
 			}

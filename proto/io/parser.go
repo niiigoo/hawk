@@ -8,6 +8,13 @@ import (
 	"strings"
 )
 
+type Boolean bool
+
+func (b *Boolean) Capture(values []string) error {
+	*b = values[0] == "true"
+	return nil
+}
+
 type Proto struct {
 	Pos lexer.Position
 
@@ -41,7 +48,7 @@ type Value struct {
 	String    *string  `parser:"  @String"`
 	Number    *float64 `parser:"| @Float"`
 	Int       *int64   `parser:"| @Int"`
-	Bool      *bool    `parser:"| (@'true' | 'false')"`
+	Bool      *Boolean `parser:"| @('true' | 'false')"`
 	Reference *string  `parser:"| @Ident @( '.' Ident )*"`
 	Map       *Map     `parser:"| @@"`
 	Array     *Array   `parser:"| @@"`
