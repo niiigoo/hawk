@@ -74,14 +74,42 @@ hawk gen
 hawk g
 ```
 
+## Logging
+
+Hawk uses [logrus](https://github.com/sirupsen/logrus) as logging framework.
+The logger is initialized in `handlers.go` and can be modified.
+
+Request-based logging can be achieved by using the default logging middlewares:
+
+```go
+// Log the time it takes to execute the endpoint (business logic)
+in.WrapAllLabeledExcept(middleware.EndpointLogging(logger, nil))
+// Adds a logger to the context with default fields
+in.WrapAllLabeledExcept(middleware.LoggerToContext(logger))
+// Adds a logger to the context (or modifies an existing one) with custom fields related to HTTP requests
+in.WrapAllWithHttpOptionExcept(middleware.LoggerToContextHTTP(logger, func (r *http.Request) log.Fields {
+// TODO: Add custom fields
+}
+```
+
+Using the configured logger is easy:
+
+```go
+func (s testService) TestEndpoint(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+// ...
+log := middleware.GetLogger(ctx)
+log.Info("Hello world")
+// {"level":"info","method":"TestEndpoint","msg":"Hello World","request_id":"08b4c2e7-cce1-41c7-aea9-ed243c84d153","service":"test","time":"2023-06-07T19:54:36+02:00","transport":"HTTPJSON","url":"/api/test"}
+// ...
+}
+```
+
 ## Planned features
 
-- Add a standardized logger
-- Provide basic middlewares
 - Implement compression (HTTP)
 - Generate documentation
-   - Markdown
-   - Swagger
+  - Markdown
+  - Swagger
 - Advanced tools
-   - `hawk generate entity <name>`
+  - `hawk generate entity <name>`
 - WebSocket support

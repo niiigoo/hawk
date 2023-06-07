@@ -1,9 +1,0 @@
-package handlers
-
-import (
-	"fmt"
-	"{{.ImportPath -}} /svc"
-	"os"
-	"os/signal"
-	"syscall"
-)

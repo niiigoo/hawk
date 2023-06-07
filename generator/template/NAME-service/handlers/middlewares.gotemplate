@@ -3,6 +3,11 @@ package handlers
 import (
 	"{{.ImportPath -}} /svc"
 	pb "{{.PBImportPath -}}"
+
+	"github.com/google/uuid"
+	"github.com/niiigoo/hawk/middleware"
+	log "github.com/sirupsen/logrus"
+	"net/http"
 )
 
 // WrapEndpoints accepts the service's entire collection of endpoints, so that a
@@ -22,11 +27,36 @@ func WrapEndpoints(in svc.Endpoints) svc.Endpoints {
 	// These middlewares get passed the endpoints name as their first argument when applied.
 	// This can be used to write generic metric gathering middlewares that can
 	// report the endpoint name for free.
-	// github.com/niiigoo/hawk/_example/middlewares/labeledmiddlewares.go for examples.
+	// github.com/niiigoo/hawk/middleware/endpoint.go for an example.
 	// in.WrapAllLabeledExcept(errorCounter(statsdCounter), "Status", "Ping")
 
 	// How to apply a middleware to a single endpoint.
 	// in.ExampleEndpoint = authMiddleware(in.ExampleEndpoint)
+
+    // Some middlewares to improve the logging of requests
+    // Use `middleware.LoggerFromContext` to benefit from it
+	in.WrapAllLabeledExcept(middleware.EndpointLogging(logger, nil))
+	in.WrapAllLabeledExcept(middleware.LoggerToContext(logger))
+	in.WrapAllWithHttpOptionExcept(middleware.LoggerToContextHTTP(logger, func(r *http.Request) log.Fields {
+		fields := log.Fields{
+			"method": r.Method,
+			"url":    r.URL.String(),
+		}
+
+		// Example for request-based tracing
+		if id := r.Header.Get("X-Request-Id"); id != "" {
+			fields["request_id"] = id
+		} else {
+			fields["request_id"] = uuid.NewString()
+		}
+
+		// Example for session-based tracing
+		if id := r.Header.Get("X-Session-Id"); id != "" {
+			fields["session_id"] = id
+		}
+
+		return fields
+	}))
 
 	return in
 }
