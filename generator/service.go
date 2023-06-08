@@ -143,8 +143,8 @@ func (g generator) generateGoKit(conf generic.Config) (map[string]io.Reader, err
 	helper := generic.NewData(svc, conf)
 	for _, tpl := range tplFiles.AssetNames() {
 		parts := strings.Split(tpl, ".")
-		if len(parts) > 2 {
-			tpl = parts[0] + "." + parts[len(parts)-1]
+		if len(parts) > 3 {
+			tpl = parts[0] + "." + strings.Join(parts[2:], ".")
 		}
 
 		// Re-derive the actual path for this file based on the service output
@@ -187,7 +187,7 @@ func (g generator) templatePathToActual(tplPath, svcName string) string {
 	// i.e. for svcName = addsvc; /NAME -> /addsvc-service/addsvc
 	actual := strings.Replace(tplPath, "NAME", svcName, -1)
 
-	actual = strings.TrimSuffix(actual, "template")
+	actual = strings.TrimSuffix(actual, ".tpl")
 
 	return actual
 }

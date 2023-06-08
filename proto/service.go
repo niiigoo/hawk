@@ -104,19 +104,22 @@ import "google/protobuf/descriptor.proto";
 import "googleapis/google/api/annotations.proto";
 
 extend google.protobuf.ServiceOptions {
-  optional HttpConfig httpConfig = 1000;
+  optional Config config = 1000;
 }
 extend google.protobuf.MethodOptions {
   optional bool httpCompress = 1000;
+  optional bool webSocket = 1001;
 }
 
-message HttpConfig {
-  string Prefix = 1;
-  bool Compress = 2;
+message Config {
+  string HttpPrefix = 1;
+  bool HttpCompress = 2;
+  string WebSocketPath = 3;
+  bool WebSocketByDefault = 4;
 }
 
 service ` + srv + ` {
-	option (httpConfig) = {
+	option (config) = {
 		Prefix: "/api/` + pkg + `"
 		Compress: false
 	};

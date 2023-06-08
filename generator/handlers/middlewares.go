@@ -8,8 +8,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// MiddlewaresPath is the path to the middleware gotemplate file.
-const MiddlewaresPath = "handlers/middlewares.gotemplate"
+// MiddlewaresPath is the path to the middleware template file.
+const MiddlewaresPath = "handlers/middlewares.go.tpl"
 
 // NewMiddlewares returns a Renderable that renders the middlewares.go file.
 func NewMiddlewares() *Middlewares {

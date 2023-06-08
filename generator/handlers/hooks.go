@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-const HookPath = "handlers/hooks.gotemplate"
+const HookPath = "handlers/hooks.go.tpl"
 
 // NewHook returns a new HookRender
 func NewHook(prev io.Reader) generic.Renderable {

@@ -92,7 +92,7 @@ func TestApplyTemplateFromPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	end, err := tmp.generator.applyTemplateFromPath("svc/endpoints.gotemplate", te)
+	end, err := tmp.generator.applyTemplateFromPath("svc/endpoints.go.tpl", te)
 	if err != nil {
 		t.Fatal(err)
 	}

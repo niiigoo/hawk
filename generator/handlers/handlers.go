@@ -23,10 +23,10 @@ import (
 const ignoredFunc = "NewService"
 
 // ServerHandlerPath is the relative path to the server handler template file
-const ServerHandlerPath = "handlers/handlers.gotemplate"
+const ServerHandlerPath = "handlers/handlers.go.tpl"
 
 // ServerHandlerMethodsPath is the relative path to the server handler method template file
-const ServerHandlerMethodsPath = "handlers/handlers.methods.gotemplate"
+const ServerHandlerMethodsPath = "handlers/handlers.methods.go.tpl"
 
 // New returns a hawk.Renderable capable of updating server handlers.
 // The previous version of the server handler should be provided.
@@ -192,13 +192,17 @@ func (m methodMap) pruneDecls(decls []ast.Decl, svcName string) []ast.Decl {
 // replaced by the new input type defined in m.RequestType.Name:
 //
 //	func ProtoMethod(ctx context.Context, *pb.{m.RequestType.Name})...
+//
+// TODO: Right now it does not support changing the signature from/to stream types.
 func updateParams(f *ast.FuncDecl, m *protoParser.Method) {
-	if f.Type.Params.NumFields() != 2 {
-		log.WithField("Function", f.Name.Name).
-			Warn("Function params signature should be func NAME(ctx context.Context, in *pb.TYPE), cannot fix")
-		return
+	if !m.RequestStream && !m.ResponseStream {
+		if f.Type.Params.NumFields() != 2 {
+			log.WithField("Function", f.Name.Name).
+				Warn("Function params signature should be func NAME(ctx context.Context, in *pb.TYPE), cannot fix")
+			return
+		}
+		updatePBFieldType(f.Type.Params.List[1].Type, m.Request)
 	}
-	updatePBFieldType(f.Type.Params.List[1].Type, m.Request)
 }
 
 // updateResults updates the first result of f to be `X`.{m.ResponseType.Name}.
@@ -210,13 +214,17 @@ func updateParams(f *ast.FuncDecl, m *protoParser.Method) {
 // replaced with the return type defined in m.ResponseType.Name:
 //
 //	func ProtoMethod(...) (*pb.{m.ResponseType.Name}, error)
+//
+// TODO: Right now it does not support changing the signature from/to stream types.
 func updateResults(f *ast.FuncDecl, m *protoParser.Method) {
-	if f.Type.Results.NumFields() != 2 {
-		log.WithField("Function", f.Name.Name).
-			Warn("Function results signature should be (*pb.TYPE, error), cannot fix")
-		return
+	if !m.RequestStream && !m.ResponseStream {
+		if f.Type.Results.NumFields() != 2 {
+			log.WithField("Function", f.Name.Name).
+				Warn("Function results signature should be (*pb.TYPE, error), cannot fix")
+			return
+		}
+		updatePBFieldType(f.Type.Results.List[0].Type, m.Response)
 	}
-	updatePBFieldType(f.Type.Results.List[0].Type, m.Response)
 }
 
 // updatePBFieldType updates t if in the form X.Sel/*X.Sel to X.newType/*X.newType.

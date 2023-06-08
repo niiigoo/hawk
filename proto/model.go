@@ -48,17 +48,22 @@ type Service struct {
 	Name       string
 	HttpPrefix string
 	Compressed *bool
+	WSPath     string
+	WSDefault  *bool
 	Methods    []*Method
 }
 
 type Method struct {
 	*io.Method
-	Type         Type
-	Name         string
-	Request      string
-	Response     string
-	HttpBindings []*OptionHttp
-	Compressed   bool
+	Type           Type
+	Name           string
+	Request        string
+	RequestStream  bool
+	Response       string
+	ResponseStream bool
+	HttpBindings   []*OptionHttp
+	Compressed     bool
+	WebSocket      bool
 
 	Parent *Service
 }
@@ -225,19 +230,28 @@ func (d Definition) methodFromProto(s *Service, method *io.Method) (*Method, err
 	}
 
 	m := &Method{
-		Method:       method,
-		Name:         method.Name,
-		Request:      method.Request.Reference,
-		Response:     method.Response.Reference,
-		HttpBindings: make([]*OptionHttp, 0),
-		Parent:       s,
+		Method:         method,
+		Name:           method.Name,
+		Request:        method.Request.Reference,
+		RequestStream:  method.StreamingRequest,
+		Response:       method.Response.Reference,
+		ResponseStream: method.StreamingResponse,
+		HttpBindings:   make([]*OptionHttp, 0),
+		Parent:         s,
 	}
 	if s.Compressed != nil {
 		m.Compressed = *s.Compressed
 	}
+	if s.WSDefault != nil {
+		m.WebSocket = *s.WSDefault
+	}
 
 	for _, option := range method.Options {
 		if option.Name == "google.api.http" {
+			if method.StreamingRequest || method.StreamingResponse {
+				return nil, errors.New("streaming methods cannot have `google.api.http` option (method `" + method.Name + "`)")
+			}
+
 			if option.Value == nil || option.Value.Map == nil {
 				return nil, errors.New("invalid value provided for `google.api.http` (method `" + method.Name + "`)")
 			}
@@ -250,6 +264,11 @@ func (d Definition) methodFromProto(s *Service, method *io.Method) (*Method, err
 				return nil, errors.New("invalid value provided for `httpCompress` (method `" + method.Name + "`)")
 			}
 			m.Compressed = bool(*option.Value.Bool)
+		} else if option.Name == "webSocket" {
+			if option.Value == nil || option.Value.Bool == nil {
+				return nil, errors.New("invalid value provided for `webSocket` (method `" + method.Name + "`)")
+			}
+			m.WebSocket = bool(*option.Value.Bool)
 		}
 	}
 
@@ -343,17 +362,23 @@ func (d Definition) serviceFromProto(service *io.Service) (*Service, error) {
 			}
 			s.Methods = append(s.Methods, m)
 		} else if entry.Option != nil {
-			if entry.Option.Name == "httpConfig" {
+			if entry.Option.Name == "config" {
 				if entry.Option.Value == nil || entry.Option.Value.Map == nil {
 					return nil, errors.New("invalid value provided for `(httpConfig)`")
 				}
 				for _, mapEntry := range entry.Option.Value.Map.Entries {
 					switch *mapEntry.Key.Reference {
-					case "Prefix":
+					case "HttpPrefix":
 						s.HttpPrefix = *mapEntry.Value.String
-					case "Compress":
+					case "HttpCompress":
 						if mapEntry.Value != nil && mapEntry.Value.Bool != nil {
 							s.Compressed = ref(bool(*mapEntry.Value.Bool))
+						}
+					case "WebSocketPath":
+						s.WSPath = *mapEntry.Value.String
+					case "WebSocketByDefault":
+						if mapEntry.Value != nil && mapEntry.Value.Bool != nil {
+							s.WSDefault = ref(bool(*mapEntry.Value.Bool))
 						}
 					}
 				}
