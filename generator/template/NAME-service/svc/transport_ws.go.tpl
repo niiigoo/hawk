@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/go-kit/kit/endpoint"
+	transport "github.com/go-kit/kit/transport/http"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
@@ -20,22 +21,23 @@ import (
 )
 
 const (
-	pongWait       = 20 * time.Second
-	pingPeriod     = (pongWait * 9) / 10
+	pongWait	   = 20 * time.Second
+	pingPeriod	 = (pongWait * 9) / 10
 	{{- if gt .HTTPHelper.Service.WSMaxSize 0 }}
-	    maxMessageSize = {{.HTTPHelper.Service.WSMaxSize}}
+		maxMessageSize = {{.HTTPHelper.Service.WSMaxSize}}
 	{{- end }}
 )
 
 type Message struct {
-	Method    string          `json:"method"`
-	Data      json.RawMessage `json:"data,omitempty"`
-	Command   string          `json:"command,omitempty"`
-	RequestID string          `json:"request_id,omitempty"`
+	Method	string		  `json:"method"`
+	Data	  json.RawMessage `json:"data,omitempty"`
+	Command   string		  `json:"command,omitempty"`
+	RequestID string		  `json:"request_id,omitempty"`
+	Status	int			 `json:"status,omitempty"`
 }
 
 type Pool struct {
-	log       *logrus.Entry
+	log	   *logrus.Entry
 	upgrade   websocket.Upgrader
 	endpoints map[string]endpoint.Endpoint
 	decoders  map[string]func(json.RawMessage) (interface{}, error)
@@ -44,18 +46,18 @@ type Pool struct {
 }
 
 type Client struct {
-	id         string
-	log        *logrus.Entry
+	id		 string
+	log		*logrus.Entry
 	connection *websocket.Conn
-	pool       *Pool
-	ctx        context.Context
+	pool	   *Pool
+	ctx		context.Context
 
 	out chan Message
 }
 
 func NewPool(log *logrus.Entry, endpoints Endpoints) *Pool {
 	p := &Pool{
-		log:     log,
+		log:	 log,
 		clients: make(map[*Client]bool),
 		upgrade: websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -66,11 +68,11 @@ func NewPool(log *logrus.Entry, endpoints Endpoints) *Pool {
 	}
 
 	{{range $i := .Service.Methods}}
-        {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-            p.endpoints["{{$i.Name}}"] = endpoints.{{$i.Name}}Endpoint
-            p.decoders["{{$i.Name}}"] = p.decoder{{$i.Name}}
-        {{ end }}
-    {{- end}}
+		{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+			p.endpoints["{{$i.Name}}"] = endpoints.{{$i.Name}}Endpoint
+			p.decoders["{{$i.Name}}"] = p.decoder{{$i.Name}}
+		{{ end }}
+	{{- end}}
 
 	return p
 }
@@ -78,12 +80,12 @@ func NewPool(log *logrus.Entry, endpoints Endpoints) *Pool {
 func (p *Pool) AddClient(connection *websocket.Conn) *Client {
 	id := uuid.NewString()
 	c := &Client{
-		id:         id,
+		id:		 id,
 		connection: connection,
-		pool:       p,
+		pool:	   p,
 		log: p.log.WithFields(logrus.Fields{
 			"transport": "WEBSOCKET",
-			"client":    id,
+			"client":	id,
 		}),
 		ctx: context.WithValue(context.Background(), "transport", "WEBSOCKET"),
 		out: make(chan Message),
@@ -108,8 +110,8 @@ func (c *Client) readMessages() {
 		c.pool.removeClient(c)
 	}()
 
-    {{ if gt .HTTPHelper.Service.WSMaxSize 0 }}
-	    c.connection.SetReadLimit(maxMessageSize)
+	{{ if gt .HTTPHelper.Service.WSMaxSize 0 }}
+		c.connection.SetReadLimit(maxMessageSize)
 	{{ end }}
 	if err := c.connection.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
 		return
@@ -137,28 +139,35 @@ func (c *Client) readMessages() {
 			break
 		}
 
-        log := c.log.WithField("method", msg.Method)
+		log := c.log.WithField("method", msg.Method)
 		if e, ok := c.pool.endpoints[msg.Method]; ok {
-            data, err := c.pool.decoders[msg.Method](msg.Data)
-            if err != nil {
-                log.WithError(err).Info("[WS] error decoding message")
-                continue
-            }
+			data, err := c.pool.decoders[msg.Method](msg.Data)
+			if err != nil {
+				log.WithError(err).Info("[WS] error decoding message")
+				c.out <- Message{
+					Method:	msg.Method,
+					RequestID: msg.RequestID,
+					Status:	http.StatusBadRequest,
+				}
+				continue
+			}
+			msg = Message{
+				Method:	msg.Method,
+				RequestID: msg.RequestID,
+				Status:	http.StatusOK,
+			}
 			response, err := e(c.ctx, data)
 			if err != nil {
 				log.WithError(err).Info("[WS] error executing endpoint")
+				msg.encodeError(err)
 			} else {
-				raw, err := json.Marshal(response)
+				msg.Data, err = json.Marshal(response)
 				if err != nil {
-					log.WithError(err).Info("[WS] error marshalling response")
-					continue
-				}
-				c.out <- Message{
-					Method:    msg.Method,
-					Data:      raw,
-					RequestID: msg.RequestID,
+					log.WithError(err).Error("[WS] error marshalling response")
+					msg.encodeError(err)
 				}
 			}
+			c.out <- msg
 		}
 	}
 }
@@ -183,7 +192,7 @@ func (c *Client) writeMessages() {
 			}
 			data, err := json.Marshal(message)
 			if err != nil {
-				c.log.WithError(err).Info("[WS] error marshalling message")
+				c.log.WithError(err).Error("[WS] error marshalling message")
 				continue
 			}
 
@@ -210,11 +219,26 @@ func (p *Pool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	go client.writeMessages()
 }
 
+func (m *Message) encodeError(err error) {
+	data, _ := json.Marshal(errorWrapper{Error: err.Error()})
+	if marshaler, ok := err.(json.Marshaler); ok {
+		if jsonBody, marshalErr := marshaler.MarshalJSON(); marshalErr == nil {
+			data = jsonBody
+		}
+	}
+	code := http.StatusInternalServerError
+	if sc, ok := err.(transport.StatusCoder); ok {
+		code = sc.StatusCode()
+	}
+	m.Data = data
+	m.Status = code
+}
+
 {{range $i := .Service.Methods}}
-    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-        func (p *Pool) decoder{{$i.Name}}(data json.RawMessage) (interface{}, error) {
-            r := &pb.{{GoName $i.Request}}{}
-            return r, json.Unmarshal(data, &r)
-        }
-    {{ end }}
+	{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+		func (p *Pool) decoder{{$i.Name}}(data json.RawMessage) (interface{}, error) {
+			r := &pb.{{GoName $i.Request}}{}
+			return r, json.Unmarshal(data, &r)
+		}
+	{{ end }}
 {{end}}
