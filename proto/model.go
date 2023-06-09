@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/niiigoo/hawk/proto/io"
 	errors2 "github.com/pkg/errors"
+	"path"
 	"strings"
 )
 
@@ -50,6 +51,7 @@ type Service struct {
 	Compressed *bool
 	WSPath     string
 	WSDefault  *bool
+	WSMaxSize  uint
 	Methods    []*Method
 }
 
@@ -380,10 +382,17 @@ func (d Definition) serviceFromProto(service *io.Service) (*Service, error) {
 						if mapEntry.Value != nil && mapEntry.Value.Bool != nil {
 							s.WSDefault = ref(bool(*mapEntry.Value.Bool))
 						}
+					case "WebSocketMaxMessageSize":
+						if mapEntry.Value != nil && mapEntry.Value.Int != nil {
+							s.WSMaxSize = uint(*mapEntry.Value.Int)
+						}
 					}
 				}
 			}
 		}
+	}
+	if s.HttpPrefix != "" && s.WSPath != "" {
+		s.WSPath = path.Join(s.HttpPrefix, s.WSPath)
 	}
 	return s, nil
 }

@@ -6,10 +6,10 @@
 package server
 
 import (
-        "flag"
-        "os"
-        "fmt"
-	"log"
+    "flag"
+    "os"
+    "fmt"
+	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -54,13 +54,17 @@ func NewEndpoints(service pb.{{.Service.Name}}Server) svc.Endpoints {
 	// Endpoint domain.
 	var (
 	{{range $i := .Service.Methods -}}
-		{{ToLower $i.Name}}Endpoint = svc.Make{{$i.Name}}Endpoint(service)
+	    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+    		{{ToLower $i.Name}}Endpoint = svc.Make{{$i.Name}}Endpoint(service)
+        {{ end }}
 	{{end}}
 	)
 
 	endpoints := svc.NewEndpoints()
 	{{range $i := .Service.Methods -}}
-		endpoints.{{$i.Name}}Endpoint = {{ToLower $i.Name}}Endpoint
+	    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+    		endpoints.{{$i.Name}}Endpoint = {{ToLower $i.Name}}Endpoint
+        {{ end }}
 	{{end}}
 
 	// Wrap selected Endpoints with middlewares. See handlers/middlewares.go
@@ -87,7 +91,10 @@ func Run(cfg svc.Config) {
 
 	// Debug listener.
 	go func() {
-		log.Println("transport", "debug", "addr", cfg.DebugAddr)
+		handlers.Logger.WithFields(logrus.Fields{
+			"transport": "debug",
+			"addr":      cfg.DebugAddr,
+		}).Info("listening")
 
 		m := http.NewServeMux()
 		m.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
@@ -101,14 +108,20 @@ func Run(cfg svc.Config) {
 
 	// HTTP transport.
 	go func() {
-		log.Println("transport", "HTTP", "addr", cfg.HTTPAddr)
-		h := svc.MakeHTTPHandler(endpoints, cfg.GenericHTTPResponseEncoder)
+        handlers.Logger.WithFields(logrus.Fields{
+			"transport": "HTTP",
+			"addr":      cfg.HTTPAddr,
+		}).Info("listening")
+		h := svc.MakeHTTPHandler(handlers.Logger, endpoints, cfg.GenericHTTPResponseEncoder)
 		errc <- http.ListenAndServe(cfg.HTTPAddr, h)
 	}()
 
 	// gRPC transport.
 	go func() {
-		log.Println("transport", "gRPC","addr", cfg.GRPCAddr)
+		handlers.Logger.WithFields(logrus.Fields{
+            "transport": "gRPC",
+            "addr":      cfg.GRPCAddr,
+        }).Info("listening")
 		ln, err := net.Listen("tcp", cfg.GRPCAddr)
 		if err != nil {
 			errc <- err
@@ -123,6 +136,6 @@ func Run(cfg svc.Config) {
 	}()
 
 	// Run!
-	log.Println("exit", <-errc)
+	handlers.Logger.WithError(<-errc).Info("exit")
 }
 

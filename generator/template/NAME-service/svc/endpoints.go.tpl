@@ -42,7 +42,9 @@ type Endpoints struct {
     httpHandlerFuncs     map[string]func(http.ResponseWriter, *http.Request)
 
 {{range $i := .Service.Methods}}
-	{{$i.Name}}Endpoint    endpoint.Endpoint
+    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+    	{{$i.Name}}Endpoint    endpoint.Endpoint
+    {{ end }}
 {{- end}}
 }
 
@@ -57,28 +59,32 @@ func NewEndpoints() Endpoints {
 
 // Endpoints
 {{range $i := .Service.Methods}}
-	func (e Endpoints) {{$i.Name}}(ctx context.Context, in *pb.{{GoName $i.Request}}) (*pb.{{GoName $i.Response}}, error) {
-		response, err := e.{{$i.Name}}Endpoint(ctx, in)
-		if err != nil {
-			return nil, err
-		}
-		return response.(*pb.{{GoName $i.Response}}), nil
-	}
+    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+        func (e Endpoints) {{$i.Name}}(ctx context.Context, in *pb.{{GoName $i.Request}}) (*pb.{{GoName $i.Response}}, error) {
+            response, err := e.{{$i.Name}}Endpoint(ctx, in)
+            if err != nil {
+                return nil, err
+            }
+            return response.(*pb.{{GoName $i.Response}}), nil
+        }
+    {{ end }}
 {{end}}
 
 // Make Endpoints
 {{with $te := .}}
 	{{range $i := $te.Service.Methods}}
-		func Make{{$i.Name}}Endpoint(s pb.{{$te.Service.Name}}Server) endpoint.Endpoint {
-			return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-				req := request.(*pb.{{GoName $i.Request}})
-				v, err := s.{{$i.Name}}(ctx, req)
-				if err != nil {
-					return nil, err
-				}
-				return v, nil
-			}
-		}
+	    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+            func Make{{$i.Name}}Endpoint(s pb.{{$te.Service.Name}}Server) endpoint.Endpoint {
+                return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+                    req := request.(*pb.{{GoName $i.Request}})
+                    v, err := s.{{$i.Name}}(ctx, req)
+                    if err != nil {
+                        return nil, err
+                    }
+                    return v, nil
+                }
+            }
+        {{ end }}
 	{{end}}
 {{end}}
 
@@ -90,7 +96,9 @@ func NewEndpoints() Endpoints {
 func (e *Endpoints) WrapAllExcept(middleware endpoint.Middleware, excluded ...string) {
 	included := map[string]struct{}{
 		{{- range $i := .Service.Methods}}
-			"{{$i.Name}}": {},
+		    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+			    "{{$i.Name}}": {},
+			{{ end }}
 		{{- end}}
 	}
 
@@ -103,9 +111,11 @@ func (e *Endpoints) WrapAllExcept(middleware endpoint.Middleware, excluded ...st
 
 	for inc := range included {
 		{{- range $i := .Service.Methods}}
-			if inc == "{{$i.Name}}" {
-				e.{{$i.Name}}Endpoint = middleware(e.{{$i.Name}}Endpoint)
-			}
+		    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+                if inc == "{{$i.Name}}" {
+                    e.{{$i.Name}}Endpoint = middleware(e.{{$i.Name}}Endpoint)
+                }
+			{{ end }}
 		{{- end}}
 	}
 }
@@ -122,7 +132,9 @@ type LabeledMiddleware func(string, endpoint.Endpoint) endpoint.Endpoint
 func (e *Endpoints) WrapAllLabeledExcept(middleware func(string, endpoint.Endpoint) endpoint.Endpoint, excluded ...string) {
 	included := map[string]struct{}{
 		{{- range $i := .Service.Methods}}
-			"{{$i.Name}}": {},
+		    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+			    "{{$i.Name}}": {},
+			{{ end }}
 		{{- end}}
 	}
 
@@ -135,9 +147,11 @@ func (e *Endpoints) WrapAllLabeledExcept(middleware func(string, endpoint.Endpoi
 
 	for inc := range included {
 		{{- range $i := .Service.Methods}}
-			if inc == "{{$i.Name}}" {
-				e.{{$i.Name}}Endpoint = middleware("{{$i.Name}}", e.{{$i.Name}}Endpoint)
-			}
+		    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+                if inc == "{{$i.Name}}" {
+                    e.{{$i.Name}}Endpoint = middleware("{{$i.Name}}", e.{{$i.Name}}Endpoint)
+                }
+            {{ end }}
 		{{- end}}
 	}
 }
@@ -150,7 +164,9 @@ func (e *Endpoints) WrapAllLabeledExcept(middleware func(string, endpoint.Endpoi
 func (e *Endpoints) WrapAllWithHttpOptionExcept(serverOption transport.ServerOption, excluded ...string) {
 	included := map[string]struct{}{
 		{{- range $i := .Service.Methods}}
-			"{{$i.Name}}": {},
+		    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+    			"{{$i.Name}}": {},
+            {{ end }}
 		{{- end}}
 	}
 

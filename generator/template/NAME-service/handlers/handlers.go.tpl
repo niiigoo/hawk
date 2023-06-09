@@ -7,13 +7,13 @@ import (
 	pb "{{.PBImportPath -}}"
 )
 
-var logger *logrus.Entry
+var Logger *logrus.Entry
 
 // NewService returns a naive, stateless implementation of Service.
 func NewService() pb.{{GoName .Service.Name}}Server {
 	log := logrus.New()
 	log.SetFormatter(&logrus.JSONFormatter{})
-	logger = log.WithField("service", "{{ToLower .Service.Name}}")
+	Logger = log.WithField("service", "{{ToLower .Service.Name}}")
 
 	return {{ToLower .Service.Name}}Service{}
 }

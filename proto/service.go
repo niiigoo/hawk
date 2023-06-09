@@ -116,6 +116,7 @@ message Config {
   bool HttpCompress = 2;
   string WebSocketPath = 3;
   bool WebSocketByDefault = 4;
+  uint32 WebSocketMaxMessageSize = 5;
 }
 
 service ` + srv + ` {

@@ -34,10 +34,10 @@ func WrapEndpoints(in svc.Endpoints) svc.Endpoints {
 	// in.ExampleEndpoint = authMiddleware(in.ExampleEndpoint)
 
     // Some middlewares to improve the logging of requests
-    // Use `middleware.LoggerFromContext` to benefit from it
-	in.WrapAllLabeledExcept(middleware.EndpointLogging(logger, nil))
-	in.WrapAllLabeledExcept(middleware.LoggerToContext(logger))
-	in.WrapAllWithHttpOptionExcept(middleware.LoggerToContextHTTP(logger, func(r *http.Request) log.Fields {
+    // Use `middleware.GetLogger` to benefit from it
+	in.WrapAllLabeledExcept(middleware.EndpointLogging(Logger, nil))
+	in.WrapAllLabeledExcept(middleware.LoggerToContext(Logger))
+	in.WrapAllWithHttpOptionExcept(middleware.LoggerToContextHTTP(Logger, func(r *http.Request) log.Fields {
 		fields := log.Fields{
 			"method": r.Method,
 			"url":    r.URL.String(),
