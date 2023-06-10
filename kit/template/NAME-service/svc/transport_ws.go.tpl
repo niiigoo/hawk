@@ -108,6 +108,7 @@ func (p *Pool) removeClient(client *Client) {
 	p.Lock()
 	defer p.Unlock()
 	if _, ok := p.clients[client]; ok {
+		close(client.out)
 		_ = client.connection.Close()
 		delete(p.clients, client)
 	}
