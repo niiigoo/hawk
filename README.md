@@ -104,18 +104,80 @@ log.Info("Hello world")
 }
 ```
 
-## HTTP compression
+## Transport layers
+
+### gRPC
+
+The gRPC server is always enabled and by default listens on port `5040`.
+All methods are exposed.
+
+### HTTP
+
+The HTTP server is always enabled and by default listens on port `5050`.
+Only methods with the option `google.api.http` are exposed by the specified path.
+
+Example:
+
+```proto
+service Test {
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse) {
+  option(google.api.http) = {
+    put: "/user/{id}"
+    body: "*"
+  };
+}
+```
+
+Check https://cloud.google.com/endpoints/docs/grpc/transcoding for more information.
+
+#### HTTP compression
 
 Compression can be configured for the whole service and for specific methods by using options in the `.proto` file.
 This is an experimental feature and the performance tradeoffs may be high.
 
 The library [httpcompression](https://github.com/CAFxX/httpcompression) is used (licensed under Apache 2.0).
 
-## Planned features
+### Websocket
+
+The websocket provider is a subset of the HTTP server. It can be enabled by providing a value for `WebSocketPath`.
+The provided path is relative to `HttpPrefix` and is the endpoint to establish a websocket connection.
+
+All methods can be accessed via websocket. The request and response are encoded as JSON.
+
+Request structure:
+
+```json
+{
+  "method": "UpdateUser",
+  "data": {
+    "id": "123",
+    "name": "John Doe"
+  },
+  "request_id": "08b4c2e7-cce1-41c7-aea9-ed243c84d153"
+}
+```
+
+The `request_id` is optional and will be added to the response:
+
+```json
+{
+  "method": "UpdateUser",
+  "status": 200,
+  "request_id": "08b4c2e7-cce1-41c7-aea9-ed243c84d153",
+  "data": {
+    "id": "123",
+    "name": "John Doe",
+    "age": 42
+  }
+}
+```
+
+The status are the HTTP status codes.
+
+## Potential new features
 
 - Generate documentation
   - Markdown
   - Swagger
 - Advanced tools
   - `hawk generate entity <name>`
-- WebSocket support

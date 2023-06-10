@@ -28,17 +28,23 @@ const (
 	{{- end }}
 )
 
+type WebSocketConfig struct {
+	Guard         func(ctx context.Context, r *http.Request) (context.Context, error)
+	OriginChecker func(r *http.Request) bool
+}
+
 type Message struct {
-	Method	string		  `json:"method"`
+	Method    string          `json:"method"`
 	Data	  json.RawMessage `json:"data,omitempty"`
-	Command   string		  `json:"command,omitempty"`
-	RequestID string		  `json:"request_id,omitempty"`
-	Status	int			 `json:"status,omitempty"`
+	Command   string          `json:"command,omitempty"`
+	RequestID string          `json:"request_id,omitempty"`
+	Status    int             `json:"status,omitempty"`
 }
 
 type Pool struct {
 	log	   *logrus.Entry
 	upgrade   websocket.Upgrader
+	guard     func(ctx context.Context, r *http.Request) (context.Context, error)
 	endpoints map[string]endpoint.Endpoint
 	decoders  map[string]func(json.RawMessage) (interface{}, error)
 	clients   map[*Client]bool
@@ -46,23 +52,25 @@ type Pool struct {
 }
 
 type Client struct {
-	id		 string
-	log		*logrus.Entry
+	id         string
+	log        *logrus.Entry
 	connection *websocket.Conn
-	pool	   *Pool
-	ctx		context.Context
+	pool       *Pool
+	ctx        context.Context
 
 	out chan Message
 }
 
-func NewPool(log *logrus.Entry, endpoints Endpoints) *Pool {
+func NewPool(log *logrus.Entry, endpoints Endpoints, wsCfg WebSocketConfig) *Pool {
 	p := &Pool{
 		log:	 log,
 		clients: make(map[*Client]bool),
 		upgrade: websocket.Upgrader{
+			CheckOrigin:     wsCfg.OriginChecker,
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 		},
+		guard:     wsCfg.Guard,
 		endpoints: make(map[string]endpoint.Endpoint),
 		decoders:  make(map[string]func(json.RawMessage) (interface{}, error)),
 	}
@@ -77,7 +85,7 @@ func NewPool(log *logrus.Entry, endpoints Endpoints) *Pool {
 	return p
 }
 
-func (p *Pool) AddClient(connection *websocket.Conn) *Client {
+func (p *Pool) AddClient(ctx context.Context, connection *websocket.Conn) *Client {
 	id := uuid.NewString()
 	c := &Client{
 		id:		 id,
@@ -87,7 +95,7 @@ func (p *Pool) AddClient(connection *websocket.Conn) *Client {
 			"transport": "WEBSOCKET",
 			"client":	id,
 		}),
-		ctx: context.WithValue(context.Background(), "transport", "WEBSOCKET"),
+		ctx: context.WithValue(ctx, "transport", "WEBSOCKET"),
 		out: make(chan Message),
 	}
 	c.log.Info("[WS] client connected")
@@ -136,25 +144,23 @@ func (c *Client) readMessages() {
 		var msg Message
 		if err = json.Unmarshal(payload, &msg); err != nil {
 			c.log.WithError(err).Info("[WS] invalid message received")
-			break
+			continue
 		}
 
 		log := c.log.WithField("method", msg.Method)
 		if e, ok := c.pool.endpoints[msg.Method]; ok {
 			data, err := c.pool.decoders[msg.Method](msg.Data)
+			msg = Message{
+				Method:    msg.Method,
+				RequestID: msg.RequestID,
+				Status:    http.StatusOK,
+			}
 			if err != nil {
 				log.WithError(err).Info("[WS] error decoding message")
-				c.out <- Message{
-					Method:	msg.Method,
-					RequestID: msg.RequestID,
-					Status:	http.StatusBadRequest,
-				}
+				msg.encodeError(err)
+				msg.Status = http.StatusBadRequest
+				c.out <- msg
 				continue
-			}
-			msg = Message{
-				Method:	msg.Method,
-				RequestID: msg.RequestID,
-				Status:	http.StatusOK,
 			}
 			response, err := e(c.ctx, data)
 			if err != nil {
@@ -209,12 +215,22 @@ func (c *Client) writeMessages() {
 }
 
 func (p *Pool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    ctx := context.Background()
+	if p.guard != nil {
+		var err error
+		ctx, err = p.guard(ctx, r)
+		if err != nil {
+			errorEncoder(nil, err, w)
+			return
+		}
+	}
+
 	conn, err := p.upgrade.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
 
-	client := p.AddClient(conn)
+	client := p.AddClient(ctx, conn)
 	go client.readMessages()
 	go client.writeMessages()
 }

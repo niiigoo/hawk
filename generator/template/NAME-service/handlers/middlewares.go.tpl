@@ -1,12 +1,15 @@
 package handlers
 
 import (
+	"context"
 	"{{.ImportPath -}} /svc"
 	pb "{{.PBImportPath -}}"
+	"net/url"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/niiigoo/hawk/middleware"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -37,8 +40,8 @@ func WrapEndpoints(in svc.Endpoints) svc.Endpoints {
     // Use `middleware.GetLogger` to benefit from it
 	in.WrapAllLabeledExcept(middleware.EndpointLogging(Logger, nil))
 	in.WrapAllLabeledExcept(middleware.LoggerToContext(Logger))
-	in.WrapAllWithHttpOptionExcept(middleware.LoggerToContextHTTP(Logger, func(r *http.Request) log.Fields {
-		fields := log.Fields{
+	in.WrapAllWithHttpOptionExcept(middleware.LoggerToContextHTTP(Logger, func(r *http.Request) logrus.Fields {
+		fields := logrus.Fields{
 			"method": r.Method,
 			"url":    r.URL.String(),
 		}
@@ -63,4 +66,25 @@ func WrapEndpoints(in svc.Endpoints) svc.Endpoints {
 
 func WrapService(in pb.{{.Service.Name}}Server) pb.{{.Service.Name}}Server {
 	return in
+}
+
+// WebSocketGuard protects the webSocket endpoint. The connection is only upgraded if the guard
+// function does not report an error. The returned context is valid for the lifetime of the connection.
+// `service` has the type `{{ToLower .Service.Name}}Service` and can be cast.
+func WebSocketGuard(ctx context.Context, service pb.{{GoName .Service.Name}}Server, r *http.Request) (context.Context, error) {
+	return ctx, nil
+}
+
+// WebSocketOriginChecker checks the origin header of the request before upgrading the connection.
+// @see github.com/gorilla/websocket for more details
+func WebSocketOriginChecker(service pb.{{GoName .Service.Name}}Server, r *http.Request) bool {
+	origin := r.Header["Origin"]
+	if len(origin) == 0 {
+		return true
+	}
+	u, err := url.Parse(origin[0])
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(u.Host, r.Host)
 }

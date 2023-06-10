@@ -91,7 +91,7 @@ var (
 	_ = errors.Wrap
 )
 // MakeHTTPHandler returns a handler that makes a set of endpoints available on predefined paths.
-func MakeHTTPHandler(logger *logrus.Entry, endpoints Endpoints, responseEncoder transport.EncodeResponseFunc, options ...transport.ServerOption) http.Handler {
+func MakeHTTPHandler(logger *logrus.Entry, endpoints Endpoints, responseEncoder transport.EncodeResponseFunc, wsCfg WebSocketConfig, options ...transport.ServerOption) http.Handler {
 	if responseEncoder == nil {
 		responseEncoder = EncodeHTTPGenericResponse
 	}
@@ -109,7 +109,7 @@ func MakeHTTPHandler(logger *logrus.Entry, endpoints Endpoints, responseEncoder 
 	m := mux.NewRouter()
 
 	{{- if .HTTPHelper.Service.WSPath}}
-		wsPool := NewPool(logger, endpoints)
+		wsPool := NewPool(logger, endpoints, wsCfg)
 		m.Handle("{{.HTTPHelper.Service.WSPath}}", wsPool)
 	{{- end}}
 

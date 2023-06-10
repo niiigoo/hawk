@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"context"
 	"net/http"
-    transport "github.com/go-kit/kit/transport/http"
+	transport "github.com/go-kit/kit/transport/http"
 
 	"github.com/go-kit/kit/endpoint"
 
@@ -35,56 +35,56 @@ import (
 // single type that implements the Service interface. For example, you might
 // construct individual endpoints using transport/http.NewClient, combine them into an Endpoints, and return it to the caller as a Service.
 type Endpoints struct {
-    pb.Unimplemented{{GoName .Service.Name}}Server
-    httpServerOptions    map[string][]transport.ServerOption
-    httpRequestDecoders  map[string]transport.DecodeRequestFunc
-    httpResponseEncoders map[string]transport.EncodeResponseFunc
-    httpHandlerFuncs     map[string]func(http.ResponseWriter, *http.Request)
+	pb.Unimplemented{{GoName .Service.Name}}Server
+	httpServerOptions    map[string][]transport.ServerOption
+	httpRequestDecoders  map[string]transport.DecodeRequestFunc
+	httpResponseEncoders map[string]transport.EncodeResponseFunc
+	httpHandlerFuncs     map[string]func(http.ResponseWriter, *http.Request)
 
 {{range $i := .Service.Methods}}
-    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-    	{{$i.Name}}Endpoint    endpoint.Endpoint
-    {{ end }}
+	{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+		{{$i.Name}}Endpoint	endpoint.Endpoint
+	{{ end }}
 {{- end}}
 }
 
 func NewEndpoints() Endpoints {
 	return Endpoints{
-		httpServerOptions:    make(map[string][]transport.ServerOption),
+		httpServerOptions:	  make(map[string][]transport.ServerOption),
 		httpRequestDecoders:  make(map[string]transport.DecodeRequestFunc),
 		httpResponseEncoders: make(map[string]transport.EncodeResponseFunc),
-		httpHandlerFuncs:     make(map[string]func(http.ResponseWriter, *http.Request)),
+		httpHandlerFuncs:	  make(map[string]func(http.ResponseWriter, *http.Request)),
 	}
 }
 
 // Endpoints
 {{range $i := .Service.Methods}}
-    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-        func (e Endpoints) {{$i.Name}}(ctx context.Context, in *pb.{{GoName $i.Request}}) (*pb.{{GoName $i.Response}}, error) {
-            response, err := e.{{$i.Name}}Endpoint(ctx, in)
-            if err != nil {
-                return nil, err
-            }
-            return response.(*pb.{{GoName $i.Response}}), nil
-        }
-    {{ end }}
+	{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+		func (e Endpoints) {{$i.Name}}(ctx context.Context, in *pb.{{GoName $i.Request}}) (*pb.{{GoName $i.Response}}, error) {
+			response, err := e.{{$i.Name}}Endpoint(ctx, in)
+			if err != nil {
+				return nil, err
+			}
+			return response.(*pb.{{GoName $i.Response}}), nil
+		}
+	{{ end }}
 {{end}}
 
 // Make Endpoints
 {{with $te := .}}
 	{{range $i := $te.Service.Methods}}
-	    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-            func Make{{$i.Name}}Endpoint(s pb.{{$te.Service.Name}}Server) endpoint.Endpoint {
-                return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-                    req := request.(*pb.{{GoName $i.Request}})
-                    v, err := s.{{$i.Name}}(ctx, req)
-                    if err != nil {
-                        return nil, err
-                    }
-                    return v, nil
-                }
-            }
-        {{ end }}
+		{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+			func Make{{$i.Name}}Endpoint(s pb.{{$te.Service.Name}}Server) endpoint.Endpoint {
+				return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+					req := request.(*pb.{{GoName $i.Request}})
+					v, err := s.{{$i.Name}}(ctx, req)
+					if err != nil {
+						return nil, err
+					}
+					return v, nil
+				}
+			}
+		{{ end }}
 	{{end}}
 {{end}}
 
@@ -96,8 +96,8 @@ func NewEndpoints() Endpoints {
 func (e *Endpoints) WrapAllExcept(middleware endpoint.Middleware, excluded ...string) {
 	included := map[string]struct{}{
 		{{- range $i := .Service.Methods}}
-		    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-			    "{{$i.Name}}": {},
+			{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+				"{{$i.Name}}": {},
 			{{ end }}
 		{{- end}}
 	}
@@ -111,10 +111,10 @@ func (e *Endpoints) WrapAllExcept(middleware endpoint.Middleware, excluded ...st
 
 	for inc := range included {
 		{{- range $i := .Service.Methods}}
-		    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-                if inc == "{{$i.Name}}" {
-                    e.{{$i.Name}}Endpoint = middleware(e.{{$i.Name}}Endpoint)
-                }
+			{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+				if inc == "{{$i.Name}}" {
+					e.{{$i.Name}}Endpoint = middleware(e.{{$i.Name}}Endpoint)
+				}
 			{{ end }}
 		{{- end}}
 	}
@@ -132,8 +132,8 @@ type LabeledMiddleware func(string, endpoint.Endpoint) endpoint.Endpoint
 func (e *Endpoints) WrapAllLabeledExcept(middleware func(string, endpoint.Endpoint) endpoint.Endpoint, excluded ...string) {
 	included := map[string]struct{}{
 		{{- range $i := .Service.Methods}}
-		    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-			    "{{$i.Name}}": {},
+			{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+				"{{$i.Name}}": {},
 			{{ end }}
 		{{- end}}
 	}
@@ -147,11 +147,11 @@ func (e *Endpoints) WrapAllLabeledExcept(middleware func(string, endpoint.Endpoi
 
 	for inc := range included {
 		{{- range $i := .Service.Methods}}
-		    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-                if inc == "{{$i.Name}}" {
-                    e.{{$i.Name}}Endpoint = middleware("{{$i.Name}}", e.{{$i.Name}}Endpoint)
-                }
-            {{ end }}
+			{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+				if inc == "{{$i.Name}}" {
+					e.{{$i.Name}}Endpoint = middleware("{{$i.Name}}", e.{{$i.Name}}Endpoint)
+				}
+			{{ end }}
 		{{- end}}
 	}
 }
@@ -164,9 +164,9 @@ func (e *Endpoints) WrapAllLabeledExcept(middleware func(string, endpoint.Endpoi
 func (e *Endpoints) WrapAllWithHttpOptionExcept(serverOption transport.ServerOption, excluded ...string) {
 	included := map[string]struct{}{
 		{{- range $i := .Service.Methods}}
-		    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-    			"{{$i.Name}}": {},
-            {{ end }}
+			{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+				"{{$i.Name}}": {},
+			{{ end }}
 		{{- end}}
 	}
 
@@ -193,15 +193,15 @@ func (e *Endpoints) WrapAllWithHttpOptionExcept(serverOption transport.ServerOpt
 // transport.ServerOption.
 // WrapWithHttpOption(serverOption, "Status")
 func (e *Endpoints) WrapWithHttpOption(endpoint string, serverOption transport.ServerOption) {
-    var options []transport.ServerOption
-    if o, ok := e.httpServerOptions[endpoint]; ok {
-        options = append(o, serverOption)
-    } else {
-        options = []transport.ServerOption{
-            serverOption,
-        }
-    }
-    e.httpServerOptions[endpoint] = options
+	var options []transport.ServerOption
+	if o, ok := e.httpServerOptions[endpoint]; ok {
+		options = append(o, serverOption)
+	} else {
+		options = []transport.ServerOption{
+			serverOption,
+		}
+	}
+	e.httpServerOptions[endpoint] = options
 }
 
 // GetHttpServerOptions returns all transport.ServerOption associated with the given endpoint.

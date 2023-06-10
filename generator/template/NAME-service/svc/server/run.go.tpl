@@ -6,6 +6,7 @@
 package server
 
 import (
+	"context"
     "flag"
     "os"
     "fmt"
@@ -83,6 +84,16 @@ func Run(cfg svc.Config) {
 		cfg.GenericHTTPResponseEncoder = svc.EncodeHTTPGenericResponse
 	}
 
+	// WebSocket config
+	wsCfg := svc.WebSocketConfig{
+		Guard: func(ctx context.Context, r *http.Request) (context.Context, error) {
+			return handlers.WebSocketGuard(ctx, service, r)
+		},
+		OriginChecker: func(r *http.Request) bool {
+			return handlers.WebSocketOriginChecker(service, r)
+		},
+	}
+
 	// Mechanical domain.
 	errc := make(chan error)
 
@@ -106,13 +117,13 @@ func Run(cfg svc.Config) {
 		errc <- http.ListenAndServe(cfg.DebugAddr, m)
 	}()
 
-	// HTTP transport.
+	// HTTP transport (includes WebSocket).
 	go func() {
         handlers.Logger.WithFields(logrus.Fields{
 			"transport": "HTTP",
 			"addr":      cfg.HTTPAddr,
 		}).Info("listening")
-		h := svc.MakeHTTPHandler(handlers.Logger, endpoints, cfg.GenericHTTPResponseEncoder)
+		h := svc.MakeHTTPHandler(handlers.Logger, endpoints, cfg.GenericHTTPResponseEncoder, wsCfg)
 		errc <- http.ListenAndServe(cfg.HTTPAddr, h)
 	}()
 
