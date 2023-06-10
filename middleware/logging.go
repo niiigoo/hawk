@@ -6,41 +6,37 @@ import (
 	kitHttp "github.com/go-kit/kit/transport/http"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"time"
 )
 
 var defaultLogger *logrus.Entry
 
-// RequestBearerFromCookie
-// Add the value of a cookie (if present) as bearer token to the context using the key `Authorization`
-func RequestBearerFromCookie(cookie string) kitHttp.ServerOption {
-	return kitHttp.ServerBefore(requestBearerFromCookie(cookie))
-}
-
-func requestBearerFromCookie(cookie string) kitHttp.RequestFunc {
-	return func(ctx context.Context, r *http.Request) context.Context {
-		c, err := r.Cookie(cookie)
-		if err == nil {
-			ctx = context.WithValue(ctx, "authorization", "bearer "+c.Value)
-			ctx = context.WithValue(ctx, "Authorization", "bearer "+c.Value)
+// EndpointLogging returns an endpoint middleware that logs the
+// duration of each invocation and the resulting error if any.
+func EndpointLogging(logger *logrus.Entry, fields logrus.Fields) func(string, endpoint.Endpoint) endpoint.Endpoint {
+	return func(method string, next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+			log := GetLogger(ctx)
+			if log == nil {
+				log = logger
+			}
+			defer func(begin time.Time) {
+				log = log.WithFields(logrus.Fields{
+					"method": method,
+					"took":   time.Since(begin),
+					"error":  err,
+				})
+				if len(fields) > 0 {
+					log = log.WithFields(fields)
+				}
+				log.Info("request completed")
+			}(time.Now())
+			return next(ctx, request)
 		}
-		return ctx
 	}
 }
 
-// CookieToContext
-// Add the value of a cookie (if present) to the context using the provided name as key
-func CookieToContext(cookie, name string) kitHttp.ServerOption {
-	return kitHttp.ServerBefore(func(ctx context.Context, r *http.Request) context.Context {
-		c, err := r.Cookie(cookie)
-		if err == nil {
-			ctx = context.WithValue(ctx, name, c.Value)
-		}
-		return ctx
-	})
-}
-
-// LoggerToContextHTTP
-// Adds a log entry to the context with HTTP request related default fields
+// LoggerToContextHTTP adds a log entry to the context with HTTP request related default fields
 func LoggerToContextHTTP(logger *logrus.Entry, fields func(r *http.Request) logrus.Fields) kitHttp.ServerOption {
 	return kitHttp.ServerBefore(func(ctx context.Context, r *http.Request) context.Context {
 		if logger == nil {
@@ -59,8 +55,7 @@ func LoggerToContextHTTP(logger *logrus.Entry, fields func(r *http.Request) logr
 	})
 }
 
-// LoggerToContext
-// Adds a log entry to the context with request related default fields
+// LoggerToContext adds a log entry to the context with request related default fields
 func LoggerToContext(logger *logrus.Entry) func(string, endpoint.Endpoint) endpoint.Endpoint {
 	return func(method string, next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
@@ -84,8 +79,7 @@ func LoggerToContext(logger *logrus.Entry) func(string, endpoint.Endpoint) endpo
 	}
 }
 
-// GetLogger
-// Returns the log entry from the context
+// GetLogger returns the log entry from the context
 func GetLogger(ctx context.Context) *logrus.Entry {
 	if ctx == nil {
 		return defaultLogger

@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/niiigoo/hawk/generator/generic"
-	helper "github.com/niiigoo/hawk/generator/testHelper"
+	"github.com/niiigoo/hawk/kit/generic"
+	helper "github.com/niiigoo/hawk/kit/testHelper"
 	parser2 "github.com/niiigoo/hawk/proto"
 	"go/ast"
 	"go/parser"
@@ -118,8 +118,8 @@ func TestApplyServerTempl(t *testing.T) {
 		}
 	`
 	conf := generic.Config{
-		GoPackage: "github.com/niiigoo/hawk/generator/gengokit/general-service",
-		PBPackage: "github.com/niiigoo/hawk/generator/gengokit/general-service",
+		GoPackage: "github.com/niiigoo/hawk/kit/gengokit/general-service",
+		PBPackage: "github.com/niiigoo/hawk/kit/gengokit/general-service",
 	}
 	p := parser2.NewService()
 	err := p.ParseString(def)
@@ -136,7 +136,7 @@ func TestApplyServerTempl(t *testing.T) {
 		import (
 			"context"
 
-			pb "github.com/niiigoo/hawk/generator/gengokit/general-service"
+			pb "github.com/niiigoo/hawk/kit/gengokit/general-service"
 		)
 
 		// NewService returns a naive, stateless implementation of Service.
@@ -304,7 +304,7 @@ func TestPruneDecls(t *testing.T) {
 		import (
 			"context"
 
-			pb "github.com/niiigoo/hawk/generator/gengokit/general-service"
+			pb "github.com/niiigoo/hawk/kit/gengokit/general-service"
 		)
 
 		// NewService returns a naive, stateless implementation of Service.
@@ -431,8 +431,8 @@ func TestUpdateMethods(t *testing.T) {
 	allMethods := svc.Methods
 
 	conf := generic.Config{
-		GoPackage: "github.com/niiigoo/hawk/generator/gengokit",
-		PBPackage: "github.com/niiigoo/hawk/generator/gengokit/general-service",
+		GoPackage: "github.com/niiigoo/hawk/kit/gengokit",
+		PBPackage: "github.com/niiigoo/hawk/kit/gengokit/general-service",
 	}
 
 	te := generic.NewData(p.Definition().Services[0], conf)

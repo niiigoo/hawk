@@ -2,8 +2,8 @@
 
 This is a CLI-tool to build microservices with go.
 
-Hawk takes the service definition from a `.proto` file and generates the boilerplate for a server supporting gRPC and
-HTTP (with JSON).
+Hawk takes the service definition from a `.proto` file and generates the boilerplate for a server supporting gRPC,
+HTTP (with JSON) and WebSocket. [Go-kit](https://github.com/go-kit/kit) is the toolkit of choice.
 
 This project can be considered as the successor of [metaverse/truss](https://github.com/metaverse/truss), the code is
 partly taken over.

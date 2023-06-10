@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/niiigoo/hawk/generator/generic"
-	"github.com/niiigoo/hawk/generator/http"
+	"github.com/niiigoo/hawk/kit/generic"
+	"github.com/niiigoo/hawk/kit/http"
 	"github.com/niiigoo/hawk/proto"
 	"io"
 	"strings"
@@ -53,8 +53,8 @@ func TestHooksAddingImport(t *testing.T) {
 	require.NoError(t, err)
 
 	conf := generic.Config{
-		GoPackage: "github.com/niiigoo/hawk/generator/gengokit",
-		PBPackage: "github.com/niiigoo/hawk/generator/gengokit/echo-service",
+		GoPackage: "github.com/niiigoo/hawk/kit/gengokit",
+		PBPackage: "github.com/niiigoo/hawk/kit/gengokit/echo-service",
 	}
 
 	te := generic.NewData(p.Definition().Services[0], conf)

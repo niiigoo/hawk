@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/niiigoo/hawk/generator/generic"
-	thelper "github.com/niiigoo/hawk/generator/testHelper"
+	"github.com/niiigoo/hawk/kit/generic"
+	thelper "github.com/niiigoo/hawk/kit/testHelper"
 	"github.com/niiigoo/hawk/proto"
 	"io"
 	"os"

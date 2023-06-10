@@ -4,7 +4,7 @@ Copyright © 2023 Nick Godzieba <nick.godzieba@outlook.de>
 package cmd
 
 import (
-	"github.com/niiigoo/hawk/generator"
+	"github.com/niiigoo/hawk/kit"
 
 	"github.com/spf13/cobra"
 )
@@ -20,7 +20,7 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		g := generator.NewGenerator()
+		g := kit.NewGenerator()
 		err := g.Init(args...)
 		printError(err)
 		return err

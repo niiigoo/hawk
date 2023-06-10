@@ -1,10 +1,10 @@
-package generator
+package kit
 
 import (
 	"bytes"
 	"fmt"
-	"github.com/niiigoo/hawk/generator/generic"
-	"github.com/niiigoo/hawk/generator/template"
+	"github.com/niiigoo/hawk/kit/generic"
+	"github.com/niiigoo/hawk/kit/template"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"go/format"

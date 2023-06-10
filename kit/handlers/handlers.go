@@ -6,8 +6,8 @@ package handlers
 
 import (
 	"bytes"
-	"github.com/niiigoo/hawk/generator/generic"
-	"github.com/niiigoo/hawk/generator/template"
+	"github.com/niiigoo/hawk/kit/generic"
+	"github.com/niiigoo/hawk/kit/template"
 	protoParser "github.com/niiigoo/hawk/proto"
 	log "github.com/sirupsen/logrus"
 	"go/ast"

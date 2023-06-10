@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/niiigoo/hawk/generator/generic"
-	"github.com/niiigoo/hawk/generator/template"
+	"github.com/niiigoo/hawk/kit/generic"
+	"github.com/niiigoo/hawk/kit/template"
 	"io"
 )
 

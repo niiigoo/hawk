@@ -1,8 +1,8 @@
-package generator
+package kit
 
 import (
-	templateFileAssets "github.com/niiigoo/hawk/generator/template"
-	"github.com/niiigoo/hawk/generator/testHelper"
+	templateFileAssets "github.com/niiigoo/hawk/kit/template"
+	"github.com/niiigoo/hawk/kit/testHelper"
 	parser2 "github.com/niiigoo/hawk/proto"
 	"go/format"
 	"io"
@@ -84,7 +84,7 @@ func TestApplyTemplateFromPath(t *testing.T) {
 
 	conf := gengokit.Config{
 		GoPackage: "github.com/metaverse/truss",
-		PBPackage: "github.com/niiigoo/hawk/generator/gengokit/general-service",
+		PBPackage: "github.com/niiigoo/hawk/kit/gengokit/general-service",
 	}
 
 	te, err := gengokit.NewData(tmp.parser.Definition(), conf)
@@ -137,8 +137,8 @@ func stringToTemplateExector(def, importPath string) (*gengokit.Data, error) {
 }
 
 func TestAllTemplates(t *testing.T) {
-	const goPackage = "github.com/niiigoo/hawk/generator/gengokit"
-	const goPBPackage = "github.com/niiigoo/hawk/generator/gengokit/general-service"
+	const goPackage = "github.com/niiigoo/hawk/kit/gengokit"
+	const goPBPackage = "github.com/niiigoo/hawk/kit/gengokit/general-service"
 
 	const def = `
 		syntax = "proto3";
@@ -220,8 +220,8 @@ func TestAllTemplates(t *testing.T) {
 	sd2 := tmp.parser.Definition()
 
 	conf := gengokit.Config{
-		GoPackage: "github.com/niiigoo/hawk/generator/gengokit",
-		PBPackage: "github.com/niiigoo/hawk/generator/gengokit/general-service",
+		GoPackage: "github.com/niiigoo/hawk/kit/gengokit",
+		PBPackage: "github.com/niiigoo/hawk/kit/gengokit/general-service",
 	}
 
 	data1, err := gengokit.NewData(sd1, conf)

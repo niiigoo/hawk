@@ -1,10 +1,10 @@
-package generator
+package kit
 
 import (
 	"github.com/iancoleman/strcase"
-	"github.com/niiigoo/hawk/generator/generic"
-	"github.com/niiigoo/hawk/generator/handlers"
-	tplFiles "github.com/niiigoo/hawk/generator/template"
+	"github.com/niiigoo/hawk/kit/generic"
+	"github.com/niiigoo/hawk/kit/handlers"
+	tplFiles "github.com/niiigoo/hawk/kit/template"
 	"github.com/niiigoo/hawk/proto"
 	"github.com/pkg/errors"
 	"io"

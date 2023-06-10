@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/iancoleman/strcase"
-	"github.com/niiigoo/hawk/generator/http/templates"
+	"github.com/niiigoo/hawk/kit/http/templates"
 	"github.com/niiigoo/hawk/proto"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"

@@ -1,7 +1,7 @@
 package http
 
 import (
-	"github.com/niiigoo/hawk/generator/testHelper"
+	"github.com/niiigoo/hawk/kit/testHelper"
 	"github.com/niiigoo/hawk/proto"
 	"os"
 	"path/filepath"

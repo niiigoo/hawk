@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"context"
-	"{{.ImportPath -}} /svc"
 	pb "{{.PBImportPath -}}"
+	"{{.ImportPath -}} /svc"
 	"net/url"
 	"strings"
 
@@ -25,6 +25,7 @@ func WrapEndpoints(in svc.Endpoints) svc.Endpoints {
 	// optionally pass in endpoints by name that you want to be excluded
 	// e.g.
 	// in.WrapAllExcept(authMiddleware, "Status", "Ping")
+	in.WrapAllExcept(middleware.CatchPanic)
 
 	// Pass in a svc.LabeledMiddleware you want applied to every endpoint.
 	// These middlewares get passed the endpoints name as their first argument when applied.

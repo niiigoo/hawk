@@ -3,7 +3,7 @@ package generic
 import (
 	"bytes"
 	"github.com/iancoleman/strcase"
-	"github.com/niiigoo/hawk/generator/http"
+	"github.com/niiigoo/hawk/kit/http"
 	"github.com/niiigoo/hawk/proto"
 	"github.com/pkg/errors"
 	"io"
