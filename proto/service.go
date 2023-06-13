@@ -108,21 +108,19 @@ extend google.protobuf.ServiceOptions {
 }
 extend google.protobuf.MethodOptions {
   optional bool httpCompress = 1000;
-  optional bool webSocket = 1001;
 }
 
 message Config {
   string HttpPrefix = 1;
   bool HttpCompress = 2;
   string WebSocketPath = 3;
-  bool WebSocketByDefault = 4;
-  uint32 WebSocketMaxMessageSize = 5;
+  uint32 WebSocketMaxMessageSize = 4;
 }
 
 service ` + srv + ` {
 	option (config) = {
-		Prefix: "/api/` + pkg + `"
-		Compress: false
+		HttpPrefix: "/api/` + pkg + `"
+		HttpCompress: false
 	};
 }
 `)
