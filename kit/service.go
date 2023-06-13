@@ -77,7 +77,7 @@ func (g generator) Service(args ...string) error {
 		return errors.Wrapf(err, "failed to parse proto file '%s'", f)
 	}
 
-	err = g.protoService.CompileProto(f, g.dir, g.dir, os.Getenv("GOPATH")+"/src/github.com/googleapis/googleapis")
+	err = g.protoService.CompileProto(f, g.dir, g.dir, "$GOPATH/src/github.com/googleapis/googleapis")
 	if err != nil {
 		return errors.Wrap(err, "protoc failed")
 	}

@@ -4,6 +4,7 @@ import (
 	"github.com/niiigoo/hawk/proto/io"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 	"os"
 	"os/exec"
 	"strings"
@@ -131,13 +132,34 @@ service ` + srv + ` {
 	return nil
 }
 
-func (p *service) CompileProto(file, out string, includes ...string) error {
+func (p *service) parseConfig() ProtocConfig {
+	data, err := os.ReadFile("protoc.yaml")
+	if err != nil {
+		data, err = os.ReadFile("protoc.yml")
+		if err != nil {
+			return ProtocConfig{}
+		}
+	}
+
+	var config ProtocConfig
+	_ = yaml.Unmarshal(data, &config)
+	return config
+}
+
+func (p *service) CompileProto(file, out string, imports ...string) error {
+	config := p.parseConfig()
+	if len(config.Imports) > 0 {
+		imports = append(imports, config.Imports...)
+	}
+
+	goPath := os.Getenv("GOPATH")
+
 	args := []string{
 		"--go-grpc_out=" + out,
 		"--go_out=" + out,
 	}
-	for _, include := range includes {
-		args = append(args, "-I="+include)
+	for _, i := range imports {
+		args = append(args, "-I="+strings.Replace(strings.Replace(i, "${GOPATH}", goPath, -1), "$GOPATH", goPath, -1))
 	}
 	args = append(args, file)
 	cmd := exec.Command("protoc", args...)

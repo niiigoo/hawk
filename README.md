@@ -174,6 +174,31 @@ The `request_id` is optional and will be added to the response:
 
 The status are the HTTP status codes.
 
+## Proto
+
+### Imports
+
+In case you have other imports, you can create the file `protoc.yaml` in the project root and add the following content:
+
+```yaml
+imports:
+  - /my/other/import # will be added to the protoc command as -I=/my/other/import
+  - /my/next/import  # will be added to the protoc command as -I=/my/next/import
+```
+
+### Syntax highlighting
+
+The IDE does not know where to find the imports, therefore, syntax highlighting is not working properly.
+To fix this, you can tell your IDE the locations:
+
+| Path                                                  | Prefix     |
+|-------------------------------------------------------|------------|
+| ${GOPATH}/src/github.com/googleapis/googleapis        | googleapis |
+| ${GOPATH}/src/github.com/googleapis/googleapis/google | google     |
+
+That's how it looks like in Goland:
+![img.png](golandProtoc.png)
+
 ## Potential new features
 
 - Generate documentation

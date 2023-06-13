@@ -9,6 +9,10 @@ import (
 	"strings"
 )
 
+type ProtocConfig struct {
+	Imports []string
+}
+
 type Type int
 
 const (
