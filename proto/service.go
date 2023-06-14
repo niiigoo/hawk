@@ -152,14 +152,12 @@ func (p *service) CompileProto(file, out string, imports ...string) error {
 		imports = append(imports, config.Imports...)
 	}
 
-	goPath := os.Getenv("GOPATH")
-
 	args := []string{
 		"--go-grpc_out=" + out,
 		"--go_out=" + out,
 	}
 	for _, i := range imports {
-		args = append(args, "-I="+strings.Replace(strings.Replace(i, "${GOPATH}", goPath, -1), "$GOPATH", goPath, -1))
+		args = append(args, "-I="+os.ExpandEnv(i))
 	}
 	args = append(args, file)
 	cmd := exec.Command("protoc", args...)

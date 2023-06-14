@@ -3,6 +3,7 @@ package exception
 import (
 	"context"
 	"encoding/json"
+	"github.com/bufbuild/protovalidate-go"
 	kit "github.com/go-kit/kit/transport/http"
 	"github.com/google/uuid"
 	"github.com/niiigoo/hawk/middleware"
@@ -12,14 +13,15 @@ import (
 	"net/http"
 )
 
-type Func func(ctx context.Context, reasons map[string]string, details ...string) error
+type FuncLog func(ctx context.Context, err error, reasons map[string]string, details logrus.Fields) error
+type Func func(reasons map[string]string) error
 
 var (
-	Internal         = New(logrus.ErrorLevel, "error.internal", http.StatusInternalServerError, codes.Internal)
-	NotFound         = New(logrus.InfoLevel, "error.not_found", http.StatusNotFound, codes.NotFound)
-	Invalid          = New(logrus.InfoLevel, "error.invalid", http.StatusBadRequest, codes.InvalidArgument)
-	Unauthenticated  = New(logrus.InfoLevel, "error.auth.unauthenticated", http.StatusUnauthorized, codes.Unauthenticated)
-	PermissionDenied = New(logrus.InfoLevel, "error.auth.permission_denied", http.StatusForbidden, codes.PermissionDenied)
+	Internal        = NewLog(logrus.ErrorLevel, "error.internal", http.StatusInternalServerError, codes.Internal)
+	NotFound        = NewLog(logrus.InfoLevel, "error.not_found", http.StatusNotFound, codes.NotFound)
+	Invalid         = NewLog(logrus.InfoLevel, "error.invalid", http.StatusUnprocessableEntity, codes.InvalidArgument)
+	Unauthenticated = NewLog(logrus.InfoLevel, "error.auth.unauthenticated", http.StatusUnauthorized, codes.Unauthenticated)
+	AccessDenied    = NewLog(logrus.InfoLevel, "error.auth.access_denied", http.StatusForbidden, codes.PermissionDenied)
 )
 
 type exception struct {
@@ -37,16 +39,24 @@ type Exception interface {
 	GRPCStatus() *status.Status
 }
 
-func New(logLevel logrus.Level, msg string, httpStatus int, grpcCode codes.Code) Func {
-	return func(ctx context.Context, reasons map[string]string, details ...string) error {
+// NewLog returns an error function containing the message and status codes. Errors are logged.
+// The actual error and reasons can be passed later.
+func NewLog(logLevel logrus.Level, msg string, httpStatus int, grpcCode codes.Code) FuncLog {
+	return func(ctx context.Context, err error, reasons map[string]string, details logrus.Fields) error {
 		errId := uuid.New().String()
 
 		if log := middleware.GetLogger(ctx); log != nil {
+			if err != nil {
+				log = log.WithError(err)
+			}
+			if details != nil {
+				log = log.WithFields(details)
+			}
+
 			log.WithFields(logrus.Fields{
 				"grpcCode":   grpcCode,
 				"statusCode": httpStatus,
 				"errorId":    errId,
-				"details":    details,
 			}).Log(logLevel, msg)
 		}
 
@@ -60,12 +70,46 @@ func New(logLevel logrus.Level, msg string, httpStatus int, grpcCode codes.Code)
 	}
 }
 
-func Error(ctx context.Context, logLevel logrus.Level, msg string, reasons map[string]string, httpStatus int, grpcCode codes.Code, details ...string) error {
-	return New(logLevel, msg, httpStatus, grpcCode)(ctx, reasons, details...)
+// New returns an error function containing the message and status codes.
+// The actual error and reasons can be passed later.
+func New(msg string, httpStatus int, grpcCode codes.Code) Func {
+	return func(reasons map[string]string) error {
+		errId := uuid.New().String()
+
+		return exception{
+			Message:    msg,
+			Reasons:    reasons,
+			ErrorId:    errId,
+			httpStatus: httpStatus,
+			grpcCode:   grpcCode,
+		}
+	}
+}
+
+// ErrorLog returns an error containing the status codes and logs the error
+func ErrorLog(ctx context.Context, logLevel logrus.Level, err error, msg string, reasons map[string]string, httpStatus int, grpcCode codes.Code, details logrus.Fields) error {
+	return NewLog(logLevel, msg, httpStatus, grpcCode)(ctx, err, reasons, details)
+}
+
+// Error returns an error containing the status codes
+func Error(msg string, reasons map[string]string, httpStatus int, grpcCode codes.Code) error {
+	return New(msg, httpStatus, grpcCode)(reasons)
+}
+
+func ProtoValidationReasons(err error) map[string]string {
+	reasons := make(map[string]string)
+
+	if e, ok := err.(*protovalidate.ValidationError); ok {
+		for _, v := range e.Violations {
+			reasons[v.FieldPath] = v.Message
+		}
+	}
+
+	return reasons
 }
 
 func (e exception) Error() string {
-	return e.ErrorId
+	return e.Message
 }
 
 // MarshalJSON marshals the error as JSON
