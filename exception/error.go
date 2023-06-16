@@ -13,15 +13,16 @@ import (
 	"net/http"
 )
 
-type FuncLog func(ctx context.Context, err error, reasons map[string]string, details logrus.Fields) error
-type Func func(reasons map[string]string) error
+type FuncLog func(ctx context.Context, msg string, err error, reasons map[string]string, details logrus.Fields) error
+type Func func(msg string, reasons map[string]string) error
 
 var (
-	Internal        = NewLog(logrus.ErrorLevel, "error.internal", http.StatusInternalServerError, codes.Internal)
-	NotFound        = NewLog(logrus.InfoLevel, "error.not_found", http.StatusNotFound, codes.NotFound)
-	Invalid         = NewLog(logrus.InfoLevel, "error.invalid", http.StatusUnprocessableEntity, codes.InvalidArgument)
-	Unauthenticated = NewLog(logrus.InfoLevel, "error.auth.unauthenticated", http.StatusUnauthorized, codes.Unauthenticated)
-	AccessDenied    = NewLog(logrus.InfoLevel, "error.auth.access_denied", http.StatusForbidden, codes.PermissionDenied)
+	Internal        = NewLog(logrus.ErrorLevel, http.StatusInternalServerError, codes.Internal)
+	NotFound        = NewLog(logrus.InfoLevel, http.StatusNotFound, codes.NotFound)
+	Invalid         = NewLog(logrus.InfoLevel, http.StatusUnprocessableEntity, codes.InvalidArgument)
+	Conflict        = NewLog(logrus.InfoLevel, http.StatusConflict, codes.AlreadyExists)
+	Unauthenticated = NewLog(logrus.InfoLevel, http.StatusUnauthorized, codes.Unauthenticated)
+	AccessDenied    = NewLog(logrus.InfoLevel, http.StatusForbidden, codes.PermissionDenied)
 )
 
 type exception struct {
@@ -41,8 +42,8 @@ type Exception interface {
 
 // NewLog returns an error function containing the message and status codes. Errors are logged.
 // The actual error and reasons can be passed later.
-func NewLog(logLevel logrus.Level, msg string, httpStatus int, grpcCode codes.Code) FuncLog {
-	return func(ctx context.Context, err error, reasons map[string]string, details logrus.Fields) error {
+func NewLog(logLevel logrus.Level, httpStatus int, grpcCode codes.Code) FuncLog {
+	return func(ctx context.Context, msg string, err error, reasons map[string]string, details logrus.Fields) error {
 		errId := uuid.New().String()
 
 		if log := middleware.GetLogger(ctx); log != nil {
@@ -72,8 +73,8 @@ func NewLog(logLevel logrus.Level, msg string, httpStatus int, grpcCode codes.Co
 
 // New returns an error function containing the message and status codes.
 // The actual error and reasons can be passed later.
-func New(msg string, httpStatus int, grpcCode codes.Code) Func {
-	return func(reasons map[string]string) error {
+func New(httpStatus int, grpcCode codes.Code) Func {
+	return func(msg string, reasons map[string]string) error {
 		errId := uuid.New().String()
 
 		return exception{
@@ -88,12 +89,12 @@ func New(msg string, httpStatus int, grpcCode codes.Code) Func {
 
 // ErrorLog returns an error containing the status codes and logs the error
 func ErrorLog(ctx context.Context, logLevel logrus.Level, err error, msg string, reasons map[string]string, httpStatus int, grpcCode codes.Code, details logrus.Fields) error {
-	return NewLog(logLevel, msg, httpStatus, grpcCode)(ctx, err, reasons, details)
+	return NewLog(logLevel, httpStatus, grpcCode)(ctx, msg, err, reasons, details)
 }
 
 // Error returns an error containing the status codes
 func Error(msg string, reasons map[string]string, httpStatus int, grpcCode codes.Code) error {
-	return New(msg, httpStatus, grpcCode)(reasons)
+	return New(httpStatus, grpcCode)(msg, reasons)
 }
 
 func ProtoValidationReasons(err error) map[string]string {

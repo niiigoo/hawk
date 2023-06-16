@@ -20,12 +20,12 @@ import (
 // Note that the final middleware wrapped will be the outermost middleware
 // (i.e. applied first)
 func WrapEndpoints(in svc.Endpoints) svc.Endpoints {
+	in.WrapAllLabeledExcept(middleware.CatchPanic)
 
 	// Pass a middleware you want applied to every endpoint.
 	// optionally pass in endpoints by name that you want to be excluded
 	// e.g.
 	// in.WrapAllExcept(authMiddleware, "Status", "Ping")
-	in.WrapAllExcept(middleware.CatchPanic)
 
 	// Pass in a svc.LabeledMiddleware you want applied to every endpoint.
 	// These middlewares get passed the endpoints name as their first argument when applied.
