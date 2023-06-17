@@ -23,9 +23,9 @@ func ProtoValidate(validator *protovalidate.Validator) func(string, endpoint.End
 					if id := ctx.Value("user"); id != nil {
 						fields["user"] = id
 					}
-					return nil, exception.ErrorLog(ctx, logrus.InfoLevel, nil, "error.validate", exception.ProtoValidationReasons(err), http.StatusUnprocessableEntity, codes.InvalidArgument, fields)
+					return nil, exception.ErrorLog(ctx, logrus.InfoLevel, "error.validate", nil, exception.ProtoValidationReasons(err), http.StatusUnprocessableEntity, codes.InvalidArgument, fields)
 				} else {
-					return nil, exception.ErrorLog(ctx, logrus.ErrorLevel, err, "error.validate.exec", nil, http.StatusInternalServerError, codes.Internal, nil)
+					return nil, exception.ErrorLog(ctx, logrus.ErrorLevel, "error.validate.exec", err, nil, http.StatusInternalServerError, codes.Internal, nil)
 				}
 			}
 			return endpoint(ctx, request)

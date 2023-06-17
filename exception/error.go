@@ -6,7 +6,6 @@ import (
 	"github.com/bufbuild/protovalidate-go"
 	kit "github.com/go-kit/kit/transport/http"
 	"github.com/google/uuid"
-	"github.com/niiigoo/hawk/middleware"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -59,7 +58,7 @@ func NewLog(logLevel logrus.Level, httpStatus int, grpcCode codes.Code) FuncLog 
 }
 
 func log(ctx context.Context, id string, logLevel logrus.Level, msg string, err error, httpStatus *int, grpcCode *codes.Code, details logrus.Fields) {
-	if log := middleware.GetLogger(ctx); log != nil {
+	if log := getLogger(ctx); log != nil {
 		if err != nil {
 			log = log.WithError(err)
 		}
@@ -175,4 +174,16 @@ func (e exception) StatusCode() int {
 // GRPCStatus returns the related gRPC status code
 func (e exception) GRPCStatus() *status.Status {
 	return status.New(e.grpcCode, e.ErrorId)
+}
+
+func getLogger(ctx context.Context) *logrus.Entry {
+	if ctx == nil {
+		return nil
+	}
+
+	if l, ok := ctx.Value("log").(*logrus.Entry); ok {
+		return l
+	}
+
+	return nil
 }
