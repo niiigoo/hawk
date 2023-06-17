@@ -46,20 +46,7 @@ func NewLog(logLevel logrus.Level, httpStatus int, grpcCode codes.Code) FuncLog 
 	return func(ctx context.Context, msg string, err error, reasons map[string]string, details logrus.Fields) error {
 		errId := uuid.New().String()
 
-		if log := middleware.GetLogger(ctx); log != nil {
-			if err != nil {
-				log = log.WithError(err)
-			}
-			if details != nil {
-				log = log.WithFields(details)
-			}
-
-			log.WithFields(logrus.Fields{
-				"grpcCode":   grpcCode,
-				"statusCode": httpStatus,
-				"errorId":    errId,
-			}).Log(logLevel, msg)
-		}
+		log(ctx, errId, logLevel, msg, err, &httpStatus, &grpcCode, details)
 
 		return exception{
 			Message:    msg,
@@ -68,6 +55,27 @@ func NewLog(logLevel logrus.Level, httpStatus int, grpcCode codes.Code) FuncLog 
 			httpStatus: httpStatus,
 			grpcCode:   grpcCode,
 		}
+	}
+}
+
+func log(ctx context.Context, id string, logLevel logrus.Level, msg string, err error, httpStatus *int, grpcCode *codes.Code, details logrus.Fields) {
+	if log := middleware.GetLogger(ctx); log != nil {
+		if err != nil {
+			log = log.WithError(err)
+		}
+		if details != nil {
+			log = log.WithFields(details)
+		}
+		if httpStatus != nil {
+			log = log.WithField("statusCode", httpStatus)
+		}
+		if grpcCode != nil {
+			log = log.WithField("grpcCode", grpcCode)
+		}
+
+		log.WithFields(logrus.Fields{
+			"errorId": id,
+		}).Log(logLevel, msg)
 	}
 }
 
@@ -88,13 +96,43 @@ func New(httpStatus int, grpcCode codes.Code) Func {
 }
 
 // ErrorLog returns an error containing the status codes and logs the error
-func ErrorLog(ctx context.Context, logLevel logrus.Level, err error, msg string, reasons map[string]string, httpStatus int, grpcCode codes.Code, details logrus.Fields) error {
+func ErrorLog(ctx context.Context, logLevel logrus.Level, msg string, err error, reasons map[string]string, httpStatus int, grpcCode codes.Code, details logrus.Fields) error {
 	return NewLog(logLevel, httpStatus, grpcCode)(ctx, msg, err, reasons, details)
 }
 
 // Error returns an error containing the status codes
 func Error(msg string, reasons map[string]string, httpStatus int, grpcCode codes.Code) error {
 	return New(httpStatus, grpcCode)(msg, reasons)
+}
+
+// Log logs the message
+func Log(ctx context.Context, logLevel logrus.Level, msg string, err error, details logrus.Fields) {
+	log(ctx, uuid.New().String(), logLevel, msg, err, nil, nil, details)
+}
+
+// LogTrace logs the message with the TraceLevel
+func LogTrace(ctx context.Context, msg string, err error, details logrus.Fields) {
+	Log(ctx, logrus.TraceLevel, msg, err, details)
+}
+
+// LogDebug logs the message with the DebugLevel
+func LogDebug(ctx context.Context, msg string, err error, details logrus.Fields) {
+	Log(ctx, logrus.DebugLevel, msg, err, details)
+}
+
+// LogInfo logs the message with the InfoLevel
+func LogInfo(ctx context.Context, msg string, err error, details logrus.Fields) {
+	Log(ctx, logrus.InfoLevel, msg, err, details)
+}
+
+// LogWarn logs the message with the WarnLevel
+func LogWarn(ctx context.Context, msg string, err error, details logrus.Fields) {
+	Log(ctx, logrus.WarnLevel, msg, err, details)
+}
+
+// LogError logs the error with the ErrorLevel
+func LogError(ctx context.Context, msg string, err error, details logrus.Fields) {
+	Log(ctx, logrus.ErrorLevel, msg, err, details)
 }
 
 func ProtoValidationReasons(err error) map[string]string {
