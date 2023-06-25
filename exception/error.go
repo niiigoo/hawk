@@ -43,7 +43,10 @@ type Exception interface {
 // The actual error and reasons can be passed later.
 func NewLog(logLevel logrus.Level, httpStatus int, grpcCode codes.Code) FuncLog {
 	return func(ctx context.Context, msg string, err error, reasons map[string]string, details logrus.Fields) error {
-		errId := uuid.New().String()
+		var errId string
+		if err != nil {
+			errId = uuid.New().String()
+		}
 
 		log(ctx, errId, logLevel, msg, err, &httpStatus, &grpcCode, details)
 
@@ -60,7 +63,7 @@ func NewLog(logLevel logrus.Level, httpStatus int, grpcCode codes.Code) FuncLog 
 func log(ctx context.Context, id string, logLevel logrus.Level, msg string, err error, httpStatus *int, grpcCode *codes.Code, details logrus.Fields) {
 	if log := getLogger(ctx); log != nil {
 		if err != nil {
-			log = log.WithError(err)
+			log = log.WithError(err).WithField("errorId", id)
 		}
 		if details != nil {
 			log = log.WithFields(details)
@@ -72,9 +75,7 @@ func log(ctx context.Context, id string, logLevel logrus.Level, msg string, err 
 			log = log.WithField("grpcCode", grpcCode)
 		}
 
-		log.WithFields(logrus.Fields{
-			"errorId": id,
-		}).Log(logLevel, msg)
+		log.Log(logLevel, msg)
 	}
 }
 
@@ -134,6 +135,11 @@ func LogError(ctx context.Context, msg string, err error, details logrus.Fields)
 	Log(ctx, logrus.ErrorLevel, msg, err, details)
 }
 
+// LogFatal logs the error with the FatalLevel. It does NOT exit the application.
+func LogFatal(ctx context.Context, msg string, err error, details logrus.Fields) {
+	Log(ctx, logrus.ErrorLevel, msg, err, details)
+}
+
 func ProtoValidationReasons(err error) map[string]string {
 	reasons := make(map[string]string)
 
@@ -153,10 +159,12 @@ func (e exception) Error() string {
 // MarshalJSON marshals the error as JSON
 func (e exception) MarshalJSON() ([]byte, error) {
 	errJson := map[string]interface{}{
-		"message":  e.Message,
-		"error_id": e.ErrorId,
+		"message": e.Message,
 	}
 
+	if e.ErrorId != "" {
+		errJson["error_id"] = e.ErrorId
+	}
 	if e.Reasons != nil && len(e.Reasons) > 0 {
 		errJson["reasons"] = e.Reasons
 	}
