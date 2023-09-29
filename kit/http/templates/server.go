@@ -15,11 +15,7 @@ var ServerDecodeTemplate = `
 			return nil, errors.Wrapf(err, "cannot read body of http request")
 		}
 		if len(buf) > 0 {
-			// AllowUnknownFields stops the unmarshaler from failing if the JSON contains unknown fields.
-			unmarshaller := jsonpb.Unmarshaler{
-				AllowUnknownFields: true,
-			}
-			if err = unmarshaller.Unmarshal(bytes.NewBuffer(buf), &req); err != nil {
+			if err = unmarshaler.Unmarshal(buf, &req); err != nil {
 				const size = 8196
 				if len(buf) > size {
 					buf = buf[:size]
@@ -58,37 +54,29 @@ package svc
 // This file provides server-side bindings for the HTTP transport.
 // It utilizes the transport/http.Server.
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	{{- if .HTTPHelper.CompressionEnabled}}
+		"github.com/CAFxX/httpcompression"
+	{{- end}}
+	transport "github.com/go-kit/kit/transport/http"
+	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
-	"io"
-	"github.com/gogo/protobuf/jsonpb"
-	"github.com/gogo/protobuf/proto"
-	{{- if .HTTPHelper.CompressionEnabled}}
-		"github.com/CAFxX/httpcompression"
-	{{- end}}
-	"context"
-	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	transport "github.com/go-kit/kit/transport/http"
 	// This service
 	pb "{{.PBImportPath -}}"
 )
 const contentType = "application/json; charset=utf-8"
 var (
-	_ = fmt.Sprint
-	_ = bytes.Compare
-	_ = strconv.Atoi
-	_ = transport.NewServer
-	_ = ioutil.NopCloser
-	_ = pb.New{{.Service.Name}}Client
-	_ = io.Copy
-	_ = errors.Wrap
+	marshaler = protojson.MarshalOptions{UseProtoNames: true}
+	unmarshaler = protojson.UnmarshalOptions{DiscardUnknown: true}
 )
 // MakeHTTPHandler returns a handler that makes a set of endpoints available on predefined paths.
 func MakeHTTPHandler(logger *logrus.Entry, endpoints Endpoints, responseEncoder transport.EncodeResponseFunc, wsCfg WebSocketConfig, options ...transport.ServerOption) http.Handler {
@@ -181,11 +169,12 @@ func (h httpError) Headers() http.Header {
 // EncodeHTTPGenericResponse is a transport/http.EncodeResponseFunc that encodes
 // the response as JSON to the response writer. Primarily useful in a server.
 func EncodeHTTPGenericResponse(_ context.Context, w http.ResponseWriter, response interface{}) error {
-	marshaller := jsonpb.Marshaler{
-		EmitDefaults: false,
-		OrigName: true,
+	raw, err := marshaler.Marshal(response.(proto.Message))
+	if err != nil {
+		return err
 	}
-	return marshaller.Marshal(w, response.(proto.Message))
+	_, err = w.Write(raw)
+	return err
 }
 // Helper functions
 func headersToContext(ctx context.Context, r *http.Request) context.Context {

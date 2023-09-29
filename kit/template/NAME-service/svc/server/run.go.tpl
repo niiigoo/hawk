@@ -7,42 +7,40 @@ package server
 
 import (
 	"context"
-    "flag"
-    "os"
-    "fmt"
+	"flag"
+	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/soheilhy/cmux"
+	"google.golang.org/grpc/reflection"
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"os"
 
 	// 3d Party
 	"google.golang.org/grpc"
 
 	// This Service
 	pb "{{.PBImportPath -}}"
-	"{{.ImportPath -}} /svc"
 	"{{.ImportPath -}} /handlers"
+	"{{.ImportPath -}} /svc"
 )
 
 var DefaultConfig svc.Config
 
 func init() {
 	flag.StringVar(&DefaultConfig.DebugAddr, "debug.addr", ":5060", "Debug and metrics listen address")
-	flag.StringVar(&DefaultConfig.HTTPAddr, "http.addr", ":5050", "HTTP listen address")
-	flag.StringVar(&DefaultConfig.GRPCAddr, "grpc.addr", ":5040", "gRPC (HTTP) listen address")
+	flag.StringVar(&DefaultConfig.ServiceAddr, "service.addr", ":5050", "HTTP and gRPC listen address")
 
 	// Use environment variables, if set. Flags have priority over Env vars.
 	if addr := os.Getenv("DEBUG_ADDR"); addr != "" {
 		DefaultConfig.DebugAddr = addr
 	}
 	if port := os.Getenv("PORT"); port != "" {
-		DefaultConfig.HTTPAddr = fmt.Sprintf(":%s", port)
+		DefaultConfig.ServiceAddr = fmt.Sprintf(":%s", port)
 	}
-	if addr := os.Getenv("HTTP_ADDR"); addr != "" {
-		DefaultConfig.HTTPAddr = addr
-	}
-	if addr := os.Getenv("GRPC_ADDR"); addr != "" {
-		DefaultConfig.GRPCAddr = addr
+	if addr := os.Getenv("SERVICE_ADDR"); addr != "" {
+		DefaultConfig.ServiceAddr = addr
 	}
 }
 
@@ -55,17 +53,17 @@ func NewEndpoints(service pb.{{.Service.Name}}Server) svc.Endpoints {
 	// Endpoint domain.
 	var (
 	{{range $i := .Service.Methods -}}
-	    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-    		{{ToLower $i.Name}}Endpoint = svc.Make{{$i.Name}}Endpoint(service)
-        {{ end }}
+		{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+			{{ToLower $i.Name}}Endpoint = svc.Make{{$i.Name}}Endpoint(service)
+		{{ end }}
 	{{end}}
 	)
 
 	endpoints := svc.NewEndpoints()
 	{{range $i := .Service.Methods -}}
-	    {{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
-    		endpoints.{{$i.Name}}Endpoint = {{ToLower $i.Name}}Endpoint
-        {{ end }}
+		{{ if and (not $i.RequestStream) (not $i.ResponseStream) }}
+			endpoints.{{$i.Name}}Endpoint = {{ToLower $i.Name}}Endpoint
+		{{ end }}
 	{{end}}
 
 	// Wrap selected Endpoints with middlewares. See handlers/middlewares.go
@@ -103,8 +101,8 @@ func Run(cfg svc.Config) {
 	// Debug listener.
 	go func() {
 		handlers.Logger.WithFields(logrus.Fields{
-			"transport": "debug",
-			"addr":      cfg.DebugAddr,
+			"layer": "debug",
+			"addr":	 cfg.DebugAddr,
 		}).Info("listening")
 
 		m := http.NewServeMux()
@@ -117,36 +115,48 @@ func Run(cfg svc.Config) {
 		errc <- http.ListenAndServe(cfg.DebugAddr, m)
 	}()
 
-	// HTTP transport (includes WebSocket).
-	go func() {
-        handlers.Logger.WithFields(logrus.Fields{
-			"transport": "HTTP",
-			"addr":      cfg.HTTPAddr,
-		}).Info("listening")
-		h := svc.MakeHTTPHandler(handlers.Logger, endpoints, cfg.GenericHTTPResponseEncoder, wsCfg)
-		errc <- http.ListenAndServe(cfg.HTTPAddr, h)
-	}()
+	// HTTP, gRPC and WebSocket listener.
+	l, err := net.Listen("tcp", cfg.ServiceAddr)
+	if err != nil {
+		handlers.Logger.WithError(err).Error("service listener error")
+		return
+	}
+	defer l.Close()
+
+	tcpMux := cmux.New(l)
+	grpcListener := tcpMux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
+	grpcListener2 := tcpMux.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	httpListener := tcpMux.Match(cmux.Any())
 
 	// gRPC transport.
+	s := grpc.NewServer()
+	srv := svc.MakeGRPCServer(endpoints)
+	pb.Register{{.Service.Name}}Server(s, srv)
+	reflection.Register(s)
+
 	go func() {
-		handlers.Logger.WithFields(logrus.Fields{
-            "transport": "gRPC",
-            "addr":      cfg.GRPCAddr,
-        }).Info("listening")
-		ln, err := net.Listen("tcp", cfg.GRPCAddr)
-		if err != nil {
-			errc <- err
-			return
-		}
-
-		srv := svc.MakeGRPCServer(endpoints)
-		s := grpc.NewServer()
-		pb.Register{{.Service.Name}}Server(s, srv)
-
-		errc <- s.Serve(ln)
+		errc <- s.Serve(grpcListener)
 	}()
+	go func() {
+		errc <- s.Serve(grpcListener2)
+	}()
+
+	// HTTP transport.
+	h := svc.MakeHTTPHandler(handlers.Logger, endpoints, cfg.GenericHTTPResponseEncoder, wsCfg)
+	go func() {
+		errc <- http.Serve(httpListener, h)
+	}()
+
+	// Start the mux.
+	go func() {
+		errc <- tcpMux.Serve()
+	}()
+
+	handlers.Logger.WithFields(logrus.Fields{
+		"layer": "service",
+		"addr":  cfg.ServiceAddr,
+	}).Info("listening")
 
 	// Run!
 	handlers.Logger.WithError(<-errc).Info("exit")
 }
-

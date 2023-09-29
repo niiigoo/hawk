@@ -91,6 +91,7 @@ func metadataToContext(ctx context.Context, md metadata.MD) context.Context {
 			ctx = context.WithValue(ctx, http.CanonicalHeaderKey(k), v[0])
 		}
 	}
+	ctx = context.WithValue(ctx, "transport", "GRPC")
 
 	return ctx
 }

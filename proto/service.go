@@ -105,10 +105,10 @@ import "google/protobuf/descriptor.proto";
 import "googleapis/google/api/annotations.proto";
 
 extend google.protobuf.ServiceOptions {
-  optional Config config = 1000;
+  optional Config config = 10000;
 }
 extend google.protobuf.MethodOptions {
-  optional bool httpCompress = 1000;
+  optional bool httpCompress = 10001;
 }
 
 message Config {

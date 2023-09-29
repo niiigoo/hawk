@@ -6,8 +6,7 @@ import (
 
 // Config contains the required fields for running a server
 type Config struct {
-	HTTPAddr                   string
+	ServiceAddr                string
 	DebugAddr                  string
-	GRPCAddr                   string
 	GenericHTTPResponseEncoder http.EncodeResponseFunc
 }
