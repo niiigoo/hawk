@@ -50,13 +50,14 @@ func (d Definition) Package() string {
 
 type Service struct {
 	*io.Service
-	Name       string
-	HttpPrefix string
-	Compressed *bool
-	WSPath     string
-	WSDefault  *bool
-	WSMaxSize  uint
-	Methods    []*Method
+	Name          string
+	HttpPrefix    string
+	Compressed    *bool
+	WSPath        string
+	WSDefault     *bool
+	WSMaxSize     uint
+	Methods       []*Method
+	QueryWithTime bool
 }
 
 type Method struct {

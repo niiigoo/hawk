@@ -26,6 +26,7 @@ type Helper struct {
 	Service            *proto.Service
 	Methods            []*Method
 	CompressionEnabled bool
+	QueryWithTime      bool
 	ServerTemplate     func(interface{}) (string, error)
 	ClientTemplate     func(interface{}) (string, error)
 }
@@ -48,6 +49,7 @@ func NewHelper(svc *proto.Service) *Helper {
 			rv.Methods = append(rv.Methods, NewMethod(method))
 		}
 	}
+	rv.QueryWithTime = svc.QueryWithTime
 	return &rv
 }
 
@@ -129,7 +131,7 @@ func NewBinding(i int, meth *proto.Method) *Binding {
 		// The 'Field' attr of each HTTPParameter always point to it's bound
 		// Methods RequestType
 		//field := param.Field
-		// If the field is a oneof ignore; we handled above already
+		// If the field is an oneof ignore; we handled above already
 		if param.Type == proto.TypeOneOf {
 			continue
 		}
@@ -155,6 +157,10 @@ func NewBinding(i int, meth *proto.Method) *Binding {
 			newField.GoType = "[]*" + newField.GoType
 		} else if param.Repeated {
 			newField.GoType = "[]" + newField.GoType
+		}
+
+		if newField.Location == "query" && newField.GoType == "pb.google.protobuf.Timestamp" {
+			meth.Parent.QueryWithTime = true
 		}
 
 		// IsEnum needed for ConvertFunc and TypeConversion logic just below
@@ -305,7 +311,7 @@ if {{.LocalName}}StrArr, ok := {{.Location}}Params["{{.QueryParamName}}"]; ok {
 if err != nil {
 	return nil, errors.Wrap(err, fmt.Sprintf("Error while extracting {{.LocalName}} from {{.Location}}, {{.Location}}Params: %v", {{.Location}}Params))
 }{{end}}
-{{if or .Repeated .IsBaseType .IsEnum}}req.{{.CamelName}} = {{if .IsOptional}}&{{end}}{{.TypeConversion}}{{end}}
+{{if or .Repeated .IsBaseType .IsEnum}}req.{{.CamelName}} = {{if .IsOptional}}ref({{end}}{{.TypeConversion}}{{if .IsOptional}}){{end}}{{end}}
 `
 	mergedLogic := queryParamLogic + genericLogic + "}"
 	if f.Location == "path" {
@@ -393,6 +399,13 @@ func createDecodeConvertFunc(f Field) (string, bool) {
 		needsErrorCheck = false
 	}
 
+	if f.GoType == "pb.google.protobuf.Timestamp" {
+		return fmt.Sprintf(`tmpTime, err := time.Parse(time.RFC3339, strings.Replace(%s, " ", "+", 1))
+		if err == nil {
+			req.%s = timestamppb.New(tmpTime)
+		}`, f.LocalName+"Str", f.CamelName), true
+	}
+
 	if f.IsEnum && !f.Repeated {
 		fType = "%s, err := strconv.ParseInt(%s, 10, 32)"
 		return fmt.Sprintf(fType, f.LocalName, f.LocalName+"Str"), true
@@ -414,7 +427,7 @@ if err != nil {
 		// All repeated args of any type are represented as slices, and bare
 		// assignments to a slice accept a slice as the rvalue. As a result,
 		// LocalName will be declared as a slice, and json.Unmarshal handles
-		// everything else for us. Addititionally, if a type is a Base type and
+		// everything else for us. Additionally, if a type is a Base type and
 		// is repeated, we first attempt to unmarshal the string we're
 		// provided, and if that fails, we try to unmarshal the string
 		// surrounded by square brackets. If THAT fails, then the string does

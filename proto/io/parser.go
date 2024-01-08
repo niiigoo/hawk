@@ -47,7 +47,7 @@ type Value struct {
 
 	String    *string  `parser:"  @String"`
 	Number    *float64 `parser:"| @Float"`
-	Int       *int64   `parser:"| @Int"`
+	Int       *int64   `parser:"| '-'?@Int"`
 	Bool      *Boolean `parser:"| @('true' | 'false')"`
 	Reference *string  `parser:"| @Ident @( '.' Ident )*"`
 	Map       *Map     `parser:"| @@"`

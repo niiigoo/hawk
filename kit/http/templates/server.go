@@ -70,6 +70,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	{{- if .HTTPHelper.QueryWithTime}}
+		"google.golang.org/protobuf/types/known/timestamppb"
+		"time"
+	{{- end}}
+
 	// This service
 	pb "{{.PBImportPath -}}"
 )
@@ -191,5 +196,9 @@ func headersToContext(ctx context.Context, r *http.Request) context.Context {
 	ctx = context.WithValue(ctx, "request-url", r.URL.Path)
 	ctx = context.WithValue(ctx, "transport", "HTTPJSON")
 	return ctx
+}
+
+func ref[T any](x T) *T {
+	return &x
 }
 `
