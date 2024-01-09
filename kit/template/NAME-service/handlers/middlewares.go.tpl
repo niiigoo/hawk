@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/niiigoo/hawk/middleware"
+	"github.com/niiigoo/hawk/pkg/middleware"
 	"github.com/sirupsen/logrus"
 	"net/http"
 )
@@ -19,7 +19,7 @@ import (
 // endpoints and not others (e.g., endpoints requiring authenticated access).
 // Note that the final middleware wrapped will be the outermost middleware
 // (i.e. applied first)
-func WrapEndpoints(in svc.Endpoints) svc.Endpoints {
+func WrapEndpoints(service pb.{{.Service.Name}}Server, in svc.Endpoints) svc.Endpoints {
 	in.WrapAllLabeledExcept(middleware.CatchPanic)
 
 	// Pass a middleware you want applied to every endpoint.

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/niiigoo/hawk/exception"
+	"github.com/niiigoo/hawk/pkg/exception"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"net/http"

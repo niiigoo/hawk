@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/bufbuild/protovalidate-go"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/niiigoo/hawk/exception"
+	"github.com/niiigoo/hawk/pkg/exception"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
