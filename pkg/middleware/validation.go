@@ -2,21 +2,24 @@ package middleware
 
 import (
 	"context"
-	"github.com/bufbuild/protovalidate-go"
+	"net/http"
+
+	"buf.build/go/protovalidate"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/niiigoo/hawk/pkg/exception"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
-	"net/http"
 )
 
-func ProtoValidate(validator *protovalidate.Validator) func(string, endpoint.Endpoint) endpoint.Endpoint {
+func ProtoValidate() func(string, endpoint.Endpoint) endpoint.Endpoint {
 	return func(method string, endpoint endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			err = validator.Validate(request.(proto.Message))
+			err = protovalidate.Validate(request.(proto.Message))
 			if err != nil {
-				if _, ok := err.(*protovalidate.ValidationError); ok {
+				var validationError *protovalidate.ValidationError
+				if errors.As(err, &validationError) {
 					fields := logrus.Fields{
 						"method": method,
 					}
@@ -24,8 +27,6 @@ func ProtoValidate(validator *protovalidate.Validator) func(string, endpoint.End
 						fields["user"] = id
 					}
 					return nil, exception.ErrorLog(ctx, logrus.InfoLevel, "error.validate", nil, exception.ProtoValidationReasons(err), http.StatusUnprocessableEntity, codes.InvalidArgument, fields)
-				} else {
-					return nil, exception.ErrorLog(ctx, logrus.ErrorLevel, "error.validate.exec", err, nil, http.StatusInternalServerError, codes.Internal, nil)
 				}
 			}
 			return endpoint(ctx, request)

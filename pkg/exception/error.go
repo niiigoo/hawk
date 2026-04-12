@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/bufbuild/protovalidate-go"
+	"net/http"
+
+	"buf.build/go/protovalidate"
 	kit "github.com/go-kit/kit/transport/http"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"net/http"
 )
 
 type FuncLog func(ctx context.Context, msg string, err error, reasons map[string]string, details logrus.Fields) error
